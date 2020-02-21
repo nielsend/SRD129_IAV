@@ -144,7 +144,7 @@ summary.tax(taxonomy=current, count=current)
 #SRD129.trim.contigs.good.unique.good.filter.unique.precluster.pick.nr_v132.wang.pick.tax.summary
 
 #Rename the following files to a simpler name
-mv SRD129.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta SRD129.outsingletons.fasta 
+mv SRD129.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta SRD129.outsingletons.fasta 
 mv SRD129.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table SRD129.outsingletons.count_table
 
 #Take out all the sequences that occur once
