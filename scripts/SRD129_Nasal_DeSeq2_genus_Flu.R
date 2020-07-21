@@ -33,30 +33,26 @@ meta2 <- read.table(file = './data/SRD129metadata.csv', sep = ',', header = TRUE
 
 #Organize meta file
 rownames(meta2) <- meta2$Sample
-meta2 <- meta2[,-1] #remove Sample column
+meta2 <- meta2[,-1] #Remove Sample column
 meta2$Set <- paste(meta2$Day, meta2$Treatment, sep = '_') #Create 'Set' column that combines Day and Treatment
 
 #Make phyloseq object SRD129 (combine taxonomy, OTU, and metadata)
 phy_meta2 <- sample_data(meta2) 
 SRD129 <- phyloseq(otu2, taxo2)
-SRD129 <- merge_phyloseq(SRD129, phy_meta2)   # combines the metadata with this phyloseq object
+SRD129 <- merge_phyloseq(SRD129, phy_meta2)   #Combines the metadata with this phyloseq object
 colnames(tax_table(SRD129))
 colnames(tax_table(SRD129)) <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus')
 SRD129
 
-#Prune
-SRD129 <- prune_samples(sample_sums(SRD129) > 2000, SRD129)  # This removes samples that have fewer than 2000 sequences associated with them.
-
-#Jules used 1000. You use 2000 as a way to subsample.
-SRD129 <- prune_taxa(taxa_sums(SRD129) > 10, SRD129)        # removes OTUs that occur less than 10 times globally
-tax_table(SRD129) [1:5, 1:6] #see what's in tax_table first 5 rows, first 6 columns
-
-# If you want to group OTUs uncomment the tax_glom() line and select your desired taxrank
-# right now all these analysis are done at the OTU level.
-
+#Prune and subset by genus rank
+SRD129 <- prune_samples(sample_sums(SRD129) > 2000, SRD129)  #This removes samples that have fewer than 2000 sequences associated with them.
+SRD129 <- prune_taxa(taxa_sums(SRD129) > 10, SRD129)        #Removes OTUs that occur less than 10 times globally
+tax_table(SRD129) [1:5, 1:6]  #See what's in tax_table first 5 rows, first 6 columns
 SRD129.genus <- tax_glom(SRD129, taxrank = "Genus")
-# This method merges species that have the same taxonomy at a certain taxanomic rank. 
-# Its approach is analogous to tip_glom, but uses categorical data instead of a tree. 
+#This method merges species that have the same taxonomy at a certain taxanomic rank. 
+#Its approach is analogous to tip_glom, but uses categorical data instead of a tree. 
+
+
 
 # PRIMARY COMPARISONS TO MAKE #
 
@@ -70,19 +66,18 @@ SRD129.genus <- tax_glom(SRD129, taxrank = "Genus")
 ######################################################### Day 0 Nasal #########################################################
 
 sample_data(SRD129.genus)
-
 SRD129.D0 <- subset_samples(SRD129.genus, Day == 'D0')
 sample_sums(SRD129.D0)
-colnames(otu_table(SRD129.D0)) #check on all the sample names
+colnames(otu_table(SRD129.D0)) #Check on all the sample names
 SRD129.D0 <- prune_taxa(taxa_sums(SRD129.D0) > 1, SRD129.D0)
-#if taxa_sums is >1, then it will print that out in SRD129.D0 object and not include anything with <1.
+#If taxa_sums is >1, then it will print that out in SRD129.D0 object and not include anything with <1.
 rowSums(SRD129.D0@otu_table)
 SRD129.D0.De <- phyloseq_to_deseq2(SRD129.D0, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
+# ~Set: whatever you want to group data by and use to designate ellipses with
 SRD129.D0.De <- DESeq(SRD129.D0.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
-#Number of pigs per group (using meta2 dataframe): 
+#Number of pigs per group (using "meta2" dataframe): 
 sum(meta2$Set == "D0_IAV")
 #IAV = 10
 sum(meta2$Set == "D0_Control")
@@ -91,7 +86,6 @@ sum(meta2$Set == "D0_Control")
 #Extract results from a DESeq analysis, organize table
 SRD129.D0.De$Set
 res.D0.ic = results(SRD129.D0.De, contrast=c("Set","D0_IAV","D0_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D0.nw.De, contrast=c("Set","D0_N_IAV","D0_N_Control")) 
 sigtab.D0.ic = res.D0.ic[which(res.D0.ic$padj < .05), ]
 sigtab.D0.ic = cbind(as(sigtab.D0.ic, "data.frame"), as(tax_table(SRD129.D0)[rownames(sigtab.D0.ic), ], "matrix"))
 format(sigtab.D0.ic$padj, scientific = TRUE)
@@ -129,7 +123,6 @@ SRD129.D1 <- subset_samples(SRD129.genus, Day == 'D1')
 sample_sums(SRD129.D1)
 colnames(otu_table(SRD129.D1)) #check on all the sample names
 SRD129.D1 <- prune_taxa(taxa_sums(SRD129.D1) > 1, SRD129.D1)
-#if taxa_sums is >1, then it will print that out in SRD129.D1.nw object and not include anything with <1.
 rowSums(SRD129.D1@otu_table)
 SRD129.D1.De <- phyloseq_to_deseq2(SRD129.D1, ~ Set)
 SRD129.D1.De <- DESeq(SRD129.D1.De, test = "Wald", fitType = "parametric")
