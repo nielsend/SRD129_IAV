@@ -21,8 +21,6 @@ library("ggsci")
 sessionInfo()
 #R version 3.6.3 (2020-02-29)
 
-########################################################################################################
-
 ####### PREPARING OBJECTS FOR DESEQ2 ANALYSIS ########
 
 #Load files
@@ -63,7 +61,7 @@ SRD129.genus <- tax_glom(SRD129, taxrank = "Genus")
 # Other comparisons to make (no significant changes in beta diversity between treatments): Compare Days 0, 1, 3, 7, 10, 36, 42 IAV and Control
 
 
-######################################################### Day 0 Nasal #########################################################
+################################################## Day 0 Nasal #########################################################
 
 sample_data(SRD129.genus)
 SRD129.D0 <- subset_samples(SRD129.genus, Day == 'D0')
@@ -116,7 +114,7 @@ sigtab.D0.ic$comp <- 'D0_IAVvsControl'
 #Create final significant comparisons table
 final.sigtab <- rbind(sigtab.D0.ic)
 
-##################################################### Day 1 Nasal ######################################################################
+################################################## Day 1 Nasal ######################################################################
 
 sample_data(SRD129.genus)
 SRD129.D1 <- subset_samples(SRD129.genus, Day == 'D1')
@@ -170,45 +168,26 @@ final.sigtab <- rbind(final.sigtab, sigtab.D1.ic)
 ################################################## Day 3 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D3.nw <- subset_samples(SRD129.genus, Day == 'D3' & Tissue == 'N')
-sample_sums(SRD129.D3.nw)
-colnames(otu_table(SRD129.D3.nw)) #check on all the sample names
-SRD129.D3.nw <- prune_taxa(taxa_sums(SRD129.D3.nw) > 1, SRD129.D3.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D3.nw object and not include anything with <1.
-rowSums(SRD129.D3.nw@otu_table)
-SRD129.D3.nw.De <- phyloseq_to_deseq2(SRD129.D3.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D3.nw.De <- DESeq(SRD129.D3.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 3 Nasal IAV vs Control ###################
+SRD129.D3 <- subset_samples(SRD129.genus, Day == 'D3')
+sample_sums(SRD129.D3)
+colnames(otu_table(SRD129.D3)) #check on all the sample names
+SRD129.D3 <- prune_taxa(taxa_sums(SRD129.D3) > 1, SRD129.D3)
+rowSums(SRD129.D3@otu_table)
+SRD129.D3.De <- phyloseq_to_deseq2(SRD129.D3, ~ Set)
+SRD129.D3.De <- DESeq(SRD129.D3.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D3_N_IAV")
+sum(meta2$Set == "D3_IAV")
 #IAV = 10
-sum(meta2$Set == "D3_N_Control")
+sum(meta2$Set == "D3_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D3.nw.De$Set
-res.D3.ic = results(SRD129.D3.nw.De, contrast=c("Set","D3_N_IAV","D3_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D3.nw.De, contrast=c("Set","D3_N_IAV","D3_N_Control")) 
+SRD129.D3.De$Set
+res.D3.ic = results(SRD129.D3.De, contrast=c("Set","D3_IAV","D3_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D3.ic = res.D3.ic[which(res.D3.ic$padj < .05), ]
-sigtab.D3.ic = cbind(as(sigtab.D3.ic, "data.frame"), as(tax_table(SRD129.D3.nw)[rownames(sigtab.D3.ic), ], "matrix"))
+sigtab.D3.ic = cbind(as(sigtab.D3.ic, "data.frame"), as(tax_table(SRD129.D3)[rownames(sigtab.D3.ic), ], "matrix"))
 format(sigtab.D3.ic$padj, scientific = TRUE)
 sigtab.D3.ic$newp <- format(round(sigtab.D3.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D3.ic$Treatment <- ifelse(sigtab.D3.ic$log2FoldChange >=0, "IAV", "Control")
@@ -225,62 +204,41 @@ deseq.D3.ic <- ggplot(sigtab.D3.ic, aes(x=reorder(rownames(sigtab.D3.ic), log2Fo
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 3')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D3.ic
 
 #Add OTU and comparisons columns
 sigtab.D3.ic
 sigtab.D3.ic$OTU <- rownames(sigtab.D3.ic)
 sigtab.D3.ic
-sigtab.D3.ic$comp <- 'D3_nasal_IAVvsControl'
+sigtab.D3.ic$comp <- 'D3_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D3.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D3.ic)
 
-################################################## Day 7 ############################################################
-
-############## Day 7 Nasal #########################
+################################################## Day 7 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D7.nw <- subset_samples(SRD129.genus, Day == 'D7' & Tissue == 'N')
-sample_sums(SRD129.D7.nw)
-colnames(otu_table(SRD129.D7.nw)) #check on all the sample names
-SRD129.D7.nw <- prune_taxa(taxa_sums(SRD129.D7.nw) > 1, SRD129.D7.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D7.nw object and not include anything with <1.
-rowSums(SRD129.D7.nw@otu_table)
-SRD129.D7.nw.De <- phyloseq_to_deseq2(SRD129.D7.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D7.nw.De <- DESeq(SRD129.D7.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 7 Nasal IAV vs Control ###################
+SRD129.D7 <- subset_samples(SRD129.genus, Day == 'D7')
+sample_sums(SRD129.D7)
+colnames(otu_table(SRD129.D7)) #check on all the sample names
+SRD129.D7 <- prune_taxa(taxa_sums(SRD129.D7) > 1, SRD129.D7)
+rowSums(SRD129.D7@otu_table)
+SRD129.D7.De <- phyloseq_to_deseq2(SRD129.D7, ~ Set)
+SRD129.D7.De <- DESeq(SRD129.D7.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D7_N_IAV")
+sum(meta2$Set == "D7_IAV")
 #IAV = 10
-sum(meta2$Set == "D7_N_Control")
+sum(meta2$Set == "D7_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D7.nw.De$Set
-res.D7.ic = results(SRD129.D7.nw.De, contrast=c("Set","D7_N_IAV","D7_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D7.nw.De, contrast=c("Set","D7_N_IAV","D7_N_Control")) 
+SRD129.D7.De$Set
+res.D7.ic = results(SRD129.D7.De, contrast=c("Set","D7_IAV","D7_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D7.ic = res.D7.ic[which(res.D7.ic$padj < .05), ]
-sigtab.D7.ic = cbind(as(sigtab.D7.ic, "data.frame"), as(tax_table(SRD129.D7.nw)[rownames(sigtab.D7.ic), ], "matrix"))
+sigtab.D7.ic = cbind(as(sigtab.D7.ic, "data.frame"), as(tax_table(SRD129.D7)[rownames(sigtab.D7.ic), ], "matrix"))
 format(sigtab.D7.ic$padj, scientific = TRUE)
 sigtab.D7.ic$newp <- format(round(sigtab.D7.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D7.ic$Treatment <- ifelse(sigtab.D7.ic$log2FoldChange >=0, "IAV", "Control")
@@ -297,62 +255,41 @@ deseq.D7.ic <- ggplot(sigtab.D7.ic, aes(x=reorder(rownames(sigtab.D7.ic), log2Fo
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 7')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D7.ic
 
 #Add OTU and comparisons columns
 sigtab.D7.ic
 sigtab.D7.ic$OTU <- rownames(sigtab.D7.ic)
 sigtab.D7.ic
-sigtab.D7.ic$comp <- 'D7_nasal_IAVvsControl'
+sigtab.D7.ic$comp <- 'D7_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D7.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D7.ic)
 
-################################################## Day 10 ############################################################
-
-############## Day 10 Nasal #########################
+################################################## Day 10 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D10.nw <- subset_samples(SRD129.genus, Day == 'D10' & Tissue == 'N')
-sample_sums(SRD129.D10.nw)
-colnames(otu_table(SRD129.D10.nw)) #check on all the sample names
-SRD129.D10.nw <- prune_taxa(taxa_sums(SRD129.D10.nw) > 1, SRD129.D10.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D10.nw object and not include anything with <1.
-rowSums(SRD129.D10.nw@otu_table)
-SRD129.D10.nw.De <- phyloseq_to_deseq2(SRD129.D10.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D10.nw.De <- DESeq(SRD129.D10.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 10 Nasal IAV vs Control ###################
+SRD129.D10 <- subset_samples(SRD129.genus, Day == 'D10')
+sample_sums(SRD129.D10)
+colnames(otu_table(SRD129.D10)) #check on all the sample names
+SRD129.D10 <- prune_taxa(taxa_sums(SRD129.D10) > 1, SRD129.D10)
+rowSums(SRD129.D10@otu_table)
+SRD129.D10.De <- phyloseq_to_deseq2(SRD129.D10, ~ Set)
+SRD129.D10.De <- DESeq(SRD129.D10.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D10_N_IAV")
+sum(meta2$Set == "D10_IAV")
 #IAV = 10
-sum(meta2$Set == "D10_N_Control")
+sum(meta2$Set == "D10_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D10.nw.De$Set
-res.D10.ic = results(SRD129.D10.nw.De, contrast=c("Set","D10_N_IAV","D10_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D10.nw.De, contrast=c("Set","D10_N_IAV","D10_N_Control")) 
+SRD129.D10.De$Set
+res.D10.ic = results(SRD129.D10.De, contrast=c("Set","D10_IAV","D10_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D10.ic = res.D10.ic[which(res.D10.ic$padj < .05), ]
-sigtab.D10.ic = cbind(as(sigtab.D10.ic, "data.frame"), as(tax_table(SRD129.D10.nw)[rownames(sigtab.D10.ic), ], "matrix"))
+sigtab.D10.ic = cbind(as(sigtab.D10.ic, "data.frame"), as(tax_table(SRD129.D10)[rownames(sigtab.D10.ic), ], "matrix"))
 format(sigtab.D10.ic$padj, scientific = TRUE)
 sigtab.D10.ic$newp <- format(round(sigtab.D10.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D10.ic$Treatment <- ifelse(sigtab.D10.ic$log2FoldChange >=0, "IAV", "Control")
@@ -369,62 +306,41 @@ deseq.D10.ic <- ggplot(sigtab.D10.ic, aes(x=reorder(rownames(sigtab.D10.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 10')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D10.ic
 
 #Add OTU and comparisons columns
 sigtab.D10.ic
 sigtab.D10.ic$OTU <- rownames(sigtab.D10.ic)
 sigtab.D10.ic
-sigtab.D10.ic$comp <- 'D10_nasal_IAVvsControl'
+sigtab.D10.ic$comp <- 'D10_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D10.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D10.ic)
 
-################################################## Day 14 ############################################################
-
-############## Day 14 Nasal #########################
+################################################## Day 14 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D14.nw <- subset_samples(SRD129.genus, Day == 'D14')
-sample_sums(SRD129.D14.nw)
-colnames(otu_table(SRD129.D14.nw)) #check on all the sample names
-SRD129.D14.nw <- prune_taxa(taxa_sums(SRD129.D14.nw) > 1, SRD129.D14.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D14.nw object and not include anything with <1.
-rowSums(SRD129.D14.nw@otu_table)
-SRD129.D14.nw.De <- phyloseq_to_deseq2(SRD129.D14.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D14.nw.De <- DESeq(SRD129.D14.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 14 Nasal IAV vs Control ###################
+SRD129.D14 <- subset_samples(SRD129.genus, Day == 'D14')
+sample_sums(SRD129.D14)
+colnames(otu_table(SRD129.D14)) #check on all the sample names
+SRD129.D14 <- prune_taxa(taxa_sums(SRD129.D14) > 1, SRD129.D14)
+rowSums(SRD129.D14@otu_table)
+SRD129.D14.De <- phyloseq_to_deseq2(SRD129.D14, ~ Set)
+SRD129.D14.De <- DESeq(SRD129.D14.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D14_N_IAV")
+sum(meta2$Set == "D14_IAV")
 #IAV = 10
-sum(meta2$Set == "D14_N_Control")
+sum(meta2$Set == "D14_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D14.nw.De$Set
-res.D14.ic = results(SRD129.D14.nw.De, contrast=c("Set","D14_N_IAV","D14_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D14.nw.De, contrast=c("Set","D14_N_IAV","D14_N_Control")) 
+SRD129.D14.De$Set
+res.D14.ic = results(SRD129.D14.De, contrast=c("Set","D14_IAV","D14_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D14.ic = res.D14.ic[which(res.D14.ic$padj < .05), ]
-sigtab.D14.ic = cbind(as(sigtab.D14.ic, "data.frame"), as(tax_table(SRD129.D14.nw)[rownames(sigtab.D14.ic), ], "matrix"))
+sigtab.D14.ic = cbind(as(sigtab.D14.ic, "data.frame"), as(tax_table(SRD129.D14)[rownames(sigtab.D14.ic), ], "matrix"))
 format(sigtab.D14.ic$padj, scientific = TRUE)
 sigtab.D14.ic$newp <- format(round(sigtab.D14.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D14.ic$Treatment <- ifelse(sigtab.D14.ic$log2FoldChange >=0, "IAV", "Control")
@@ -441,63 +357,41 @@ deseq.D14.ic <- ggplot(sigtab.D14.ic, aes(x=reorder(rownames(sigtab.D14.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 14')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D14.ic
 
 #Add OTU and comparisons columns
 sigtab.D14.ic
 sigtab.D14.ic$OTU <- rownames(sigtab.D14.ic)
 sigtab.D14.ic
-sigtab.D14.ic$comp <- 'D14_nasal_IAVvsControl'
-write.csv(sigtab.D14.ic, file="SRD129_D14_Nasal_IAVvsControl.csv")
+sigtab.D14.ic$comp <- 'D14_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D14.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D14.ic)
 
-################################################## Day 21 ############################################################
-
-############## Day 21 Nasal #########################
+################################################## Day 21 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D21.nw <- subset_samples(SRD129.genus, Day == 'D21')
-sample_sums(SRD129.D21.nw)
-colnames(otu_table(SRD129.D21.nw)) #check on all the sample names
-SRD129.D21.nw <- prune_taxa(taxa_sums(SRD129.D21.nw) > 1, SRD129.D21.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D21.nw object and not include anything with <1.
-rowSums(SRD129.D21.nw@otu_table)
-SRD129.D21.nw.De <- phyloseq_to_deseq2(SRD129.D21.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D21.nw.De <- DESeq(SRD129.D21.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 21 Nasal IAV vs Control ###################
+SRD129.D21 <- subset_samples(SRD129.genus, Day == 'D21')
+sample_sums(SRD129.D21)
+colnames(otu_table(SRD129.D21))
+SRD129.D21 <- prune_taxa(taxa_sums(SRD129.D21) > 1, SRD129.D21)
+rowSums(SRD129.D21@otu_table)
+SRD129.D21.De <- phyloseq_to_deseq2(SRD129.D21, ~ Set)
+SRD129.D21.De <- DESeq(SRD129.D21.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D21_N_IAV")
+sum(meta2$Set == "D21_IAV")
 #IAV = 9
-sum(meta2$Set == "D21_N_Control")
+sum(meta2$Set == "D21_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D21.nw.De$Set
-res.D21.ic = results(SRD129.D21.nw.De, contrast=c("Set","D21_N_IAV","D21_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D21.nw.De, contrast=c("Set","D21_N_IAV","D21_N_Control")) 
+SRD129.D21.De$Set
+res.D21.ic = results(SRD129.D21.De, contrast=c("Set","D21_IAV","D21_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D21.ic = res.D21.ic[which(res.D21.ic$padj < .05), ]
-sigtab.D21.ic = cbind(as(sigtab.D21.ic, "data.frame"), as(tax_table(SRD129.D21.nw)[rownames(sigtab.D21.ic), ], "matrix"))
+sigtab.D21.ic = cbind(as(sigtab.D21.ic, "data.frame"), as(tax_table(SRD129.D21)[rownames(sigtab.D21.ic), ], "matrix"))
 format(sigtab.D21.ic$padj, scientific = TRUE)
 sigtab.D21.ic$newp <- format(round(sigtab.D21.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D21.ic$Treatment <- ifelse(sigtab.D21.ic$log2FoldChange >=0, "IAV", "Control")
@@ -514,63 +408,41 @@ deseq.D21.ic <- ggplot(sigtab.D21.ic, aes(x=reorder(rownames(sigtab.D21.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 21')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D21.ic
 
 #Add OTU and comparisons columns
 sigtab.D21.ic
 sigtab.D21.ic$OTU <- rownames(sigtab.D21.ic)
 sigtab.D21.ic
-sigtab.D21.ic$comp <- 'D21_nasal_IAVvsControl'
-write.csv(sigtab.D21.ic, file="SRD129_D21_Nasal_IAVvsControl.csv")
+sigtab.D21.ic$comp <- 'D21_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D21.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D21.ic)
 
-################################################## Day 28 ############################################################
-
-############## Day 28 Nasal #########################
+################################################## Day 28 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D28.nw <- subset_samples(SRD129.genus, Day == 'D28')
-sample_sums(SRD129.D28.nw)
-colnames(otu_table(SRD129.D28.nw)) #check on all the sample names
-SRD129.D28.nw <- prune_taxa(taxa_sums(SRD129.D28.nw) > 1, SRD129.D28.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D28.nw object and not include anything with <1.
-rowSums(SRD129.D28.nw@otu_table)
-SRD129.D28.nw.De <- phyloseq_to_deseq2(SRD129.D28.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D28.nw.De <- DESeq(SRD129.D28.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 28 Nasal IAV vs Control ###################
+SRD129.D28 <- subset_samples(SRD129.genus, Day == 'D28')
+sample_sums(SRD129.D28)
+colnames(otu_table(SRD129.D28))
+SRD129.D28 <- prune_taxa(taxa_sums(SRD129.D28) > 1, SRD129.D28)
+rowSums(SRD129.D28@otu_table)
+SRD129.D28.De <- phyloseq_to_deseq2(SRD129.D28, ~ Set)
+SRD129.D28.De <- DESeq(SRD129.D28.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D28_N_IAV")
+sum(meta2$Set == "D28_IAV")
 #IAV = 5
-sum(meta2$Set == "D28_N_Control")
+sum(meta2$Set == "D28_Control")
 #Control = 4
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D28.nw.De$Set
-res.D28.ic = results(SRD129.D28.nw.De, contrast=c("Set","D28_N_IAV","D28_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D28.nw.De, contrast=c("Set","D28_N_IAV","D28_N_Control")) 
+SRD129.D28.De$Set
+res.D28.ic = results(SRD129.D28.De, contrast=c("Set","D28_IAV","D28_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D28.ic = res.D28.ic[which(res.D28.ic$padj < .05), ]
-sigtab.D28.ic = cbind(as(sigtab.D28.ic, "data.frame"), as(tax_table(SRD129.D28.nw)[rownames(sigtab.D28.ic), ], "matrix"))
+sigtab.D28.ic = cbind(as(sigtab.D28.ic, "data.frame"), as(tax_table(SRD129.D28)[rownames(sigtab.D28.ic), ], "matrix"))
 format(sigtab.D28.ic$padj, scientific = TRUE)
 sigtab.D28.ic$newp <- format(round(sigtab.D28.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D28.ic$Treatment <- ifelse(sigtab.D28.ic$log2FoldChange >=0, "IAV", "Control")
@@ -587,64 +459,41 @@ deseq.D28.ic <- ggplot(sigtab.D28.ic, aes(x=reorder(rownames(sigtab.D28.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 28')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D28.ic
 
 #Add OTU and comparisons columns
 sigtab.D28.ic
 sigtab.D28.ic$OTU <- rownames(sigtab.D28.ic)
 sigtab.D28.ic
-sigtab.D28.ic$comp <- 'D28_nasal_IAVvsControl'
-write.csv(sigtab.D28.ic, file="SRD129_D28_Nasal_IAVvsControl.csv")
-
+sigtab.D28.ic$comp <- 'D28_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D28.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D28.ic)
 
-################################################## Day 36 ############################################################
-
-############## Day 36 Nasal #########################
+################################################## Day 36 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D36.nw <- subset_samples(SRD129.genus, Day == 'D36' & Tissue == 'N')
-sample_sums(SRD129.D36.nw)
-colnames(otu_table(SRD129.D36.nw)) #check on all the sample names
-SRD129.D36.nw <- prune_taxa(taxa_sums(SRD129.D36.nw) > 1, SRD129.D36.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D36.nw object and not include anything with <1.
-rowSums(SRD129.D36.nw@otu_table)
-SRD129.D36.nw.De <- phyloseq_to_deseq2(SRD129.D36.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D36.nw.De <- DESeq(SRD129.D36.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 36 Nasal IAV vs Control ###################
+SRD129.D36 <- subset_samples(SRD129.genus, Day == 'D36')
+sample_sums(SRD129.D36)
+colnames(otu_table(SRD129.D36))
+SRD129.D36 <- prune_taxa(taxa_sums(SRD129.D36) > 1, SRD129.D36)
+rowSums(SRD129.D36@otu_table)
+SRD129.D36.De <- phyloseq_to_deseq2(SRD129.D36, ~ Set)
+SRD129.D36.De <- DESeq(SRD129.D36.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D36_N_IAV")
+sum(meta2$Set == "D36_IAV")
 #IAV = 9
-sum(meta2$Set == "D36_N_Control")
+sum(meta2$Set == "D36_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D36.nw.De$Set
-res.D36.ic = results(SRD129.D36.nw.De, contrast=c("Set","D36_N_IAV","D36_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D36.nw.De, contrast=c("Set","D36_N_IAV","D36_N_Control")) 
+SRD129.D36.De$Set
+res.D36.ic = results(SRD129.D36.De, contrast=c("Set","D36_IAV","D36_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D36.ic = res.D36.ic[which(res.D36.ic$padj < .05), ]
-sigtab.D36.ic = cbind(as(sigtab.D36.ic, "data.frame"), as(tax_table(SRD129.D36.nw)[rownames(sigtab.D36.ic), ], "matrix"))
+sigtab.D36.ic = cbind(as(sigtab.D36.ic, "data.frame"), as(tax_table(SRD129.D36)[rownames(sigtab.D36.ic), ], "matrix"))
 format(sigtab.D36.ic$padj, scientific = TRUE)
 sigtab.D36.ic$newp <- format(round(sigtab.D36.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D36.ic$Treatment <- ifelse(sigtab.D36.ic$log2FoldChange >=0, "IAV", "Control")
@@ -661,62 +510,41 @@ deseq.D36.ic <- ggplot(sigtab.D36.ic, aes(x=reorder(rownames(sigtab.D36.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 36')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D36.ic
 
 #Add OTU and comparisons columns
 sigtab.D36.ic
 sigtab.D36.ic$OTU <- rownames(sigtab.D36.ic)
 sigtab.D36.ic
-sigtab.D36.ic$comp <- 'D36_nasal_IAVvsControl'
+sigtab.D36.ic$comp <- 'D36_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D36.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D36.ic)
 
-################################################## Day 42 ############################################################
-
-############## Day 42 Nasal #########################
+################################################## Day 42 Nasal ############################################################
 
 sample_data(SRD129.genus)
-SRD129.D42.nw <- subset_samples(SRD129.genus, Day == 'D42' & Tissue == 'N')
-sample_sums(SRD129.D42.nw)
-colnames(otu_table(SRD129.D42.nw)) #check on all the sample names
-SRD129.D42.nw <- prune_taxa(taxa_sums(SRD129.D42.nw) > 1, SRD129.D42.nw)
-#if taxa_sums is >1, then it will print that out in SRD129.D42.nw object and not include anything with <1.
-rowSums(SRD129.D42.nw@otu_table)
-SRD129.D42.nw.De <- phyloseq_to_deseq2(SRD129.D42.nw, ~ Set)
-# ~Set: whatever you want to group data by, whatever column you used to designate ellipses with
-
-#DESeq calculation: Differential expression analysis 
-#based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-SRD129.D42.nw.De <- DESeq(SRD129.D42.nw.De, test = "Wald", fitType = "parametric")
-#estimating size factors
-#estimating dispersions
-#gene-wise dispersion estimates
-#mean-dispersion relationship
-#final dispersion estimates
-#fitting model and testing
-#-- replacing outliers and refitting for 7 genes
-#-- DESeq argument 'minReplicatesForReplace' = 7 
-#-- original counts are preserved in counts(dds)
-#estimating dispersions
-#fitting model and testing
-
-######### Day 42 Nasal IAV vs Control ###################
+SRD129.D42 <- subset_samples(SRD129.genus, Day == 'D42')
+sample_sums(SRD129.D42)
+colnames(otu_table(SRD129.D42))
+SRD129.D42 <- prune_taxa(taxa_sums(SRD129.D42) > 1, SRD129.D42)
+rowSums(SRD129.D42@otu_table)
+SRD129.D42.De <- phyloseq_to_deseq2(SRD129.D42, ~ Set)
+SRD129.D42.De <- DESeq(SRD129.D42.De, test = "Wald", fitType = "parametric")
 
 meta2$Set
 #Number of pigs per group (using meta2 dataframe): 
-sum(meta2$Set == "D42_N_IAV")
+sum(meta2$Set == "D42_IAV")
 #IAV = 9
-sum(meta2$Set == "D42_N_Control")
+sum(meta2$Set == "D42_Control")
 #Control = 10
 
 #Extract results from a DESeq analysis, organize table
-SRD129.D42.nw.De$Set
-res.D42.ic = results(SRD129.D42.nw.De, contrast=c("Set","D42_N_IAV","D42_N_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(SRD129.D42.nw.De, contrast=c("Set","D42_N_IAV","D42_N_Control")) 
+SRD129.D42.De$Set
+res.D42.ic = results(SRD129.D42.De, contrast=c("Set","D42_IAV","D42_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D42.ic = res.D42.ic[which(res.D42.ic$padj < .05), ]
-sigtab.D42.ic = cbind(as(sigtab.D42.ic, "data.frame"), as(tax_table(SRD129.D42.nw)[rownames(sigtab.D42.ic), ], "matrix"))
+sigtab.D42.ic = cbind(as(sigtab.D42.ic, "data.frame"), as(tax_table(SRD129.D42)[rownames(sigtab.D42.ic), ], "matrix"))
 format(sigtab.D42.ic$padj, scientific = TRUE)
 sigtab.D42.ic$newp <- format(round(sigtab.D42.ic$padj, digits = 3), scientific = TRUE)
 sigtab.D42.ic$Treatment <- ifelse(sigtab.D42.ic$log2FoldChange >=0, "IAV", "Control")
@@ -733,25 +561,20 @@ deseq.D42.ic <- ggplot(sigtab.D42.ic, aes(x=reorder(rownames(sigtab.D42.ic), log
         axis.title.x=element_text(size = 15),
         axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 42')+ coord_flip() +
   theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-  scale_fill_manual(labels = c("Control", "IAV"), values = c('#999999', '#CC0066'))
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D42.ic
 
 #Add OTU and comparisons columns
 sigtab.D42.ic
 sigtab.D42.ic$OTU <- rownames(sigtab.D42.ic)
 sigtab.D42.ic
-sigtab.D42.ic$comp <- 'D42_nasal_IAVvsControl'
+sigtab.D42.ic$comp <- 'D42_IAVvsControl'
 
 #Create final significant comparisons table
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D42.ic)
+final.sigtab <- rbind(final.sigtab, sigtab.D42.ic)
 
-#######################################################################################################
-
-#write csv
-write.csv(final.nonsigtab, file= "SRD129_FinalDiffAbundNasalGenus_SignificantDays.csv")
-
-#######################################################################################################
-
+################################################## write csv ########################################
+write.csv(final.sigtab, file= "SRD129_FinalDiffAbundGenus.csv")
 
 
 ######### Plots of Differentially Abundant Nasal Genera Combined for Each Pairwise Comparison of IAV and Control Groups########
@@ -759,15 +582,15 @@ library("ggsci")
 
 #IAV and Control Log2fold Plot Part A
 final_ic <- sigtab.D0.ic
-final_ic <- rbind(final_ic, sigtab.DNEG12.ic, sigtab.DNEG6.ic, sigtab.D1.ic, sigtab.D3.ic, sigtab.D7.ic, sigtab.D10.ic, 
+final_ic <- rbind(final_ic, sigtab.D1.ic, sigtab.D3.ic, sigtab.D7.ic, sigtab.D10.ic, 
                   sigtab.D14.ic, sigtab.D21.ic, sigtab.D28.ic, sigtab.D36.ic, sigtab.D42.ic)
 final_ic$Family_Genus <- paste(final_ic$Family, final_ic$Genus) #create new column with Family_Genus
 final_ic$comp
 class(final_ic)
-final_ic$comp <- factor(final_ic$comp, levels=c("DNEG12_nasal_IAVvsControl", "DNEG6_nasal_IAVvsControl", "D0_nasal_IAVvsControl",
-                                                "D1_nasal_IAVvsControl", "D3_nasal_IAVvsControl", "D7_nasal_IAVvsControl",
-                                                "D10_nasal_IAVvsControl", "D14_nasal_IAVvsControl", "D21_nasal_IAVvsControl",
-                                                "D28_nasal_IAVvsControl", "D36_nasal_IAVvsControl", "D42_nasal_IAVvsControl"))
+final_ic$comp <- factor(final_ic$comp, levels=c("D0_IAVvsControl",
+                                                "D1_IAVvsControl", "D3_IAVvsControl", "D7_IAVvsControl",
+                                                "D10_IAVvsControl", "D14_IAVvsControl", "D21_IAVvsControl",
+                                                "D28_IAVvsControl", "D36_IAVvsControl", "D42_IAVvsControl"))
 levels(final_ic$comp)
 ic_plot <- ggplot(final_ic, aes(x=Family_Genus, log2FoldChange, fill = comp)) +
   geom_bar(stat='identity') +
@@ -811,7 +634,7 @@ levels(ic$Day) #"D3"  "D7"  "D10" "D14" "D21" "D28"
           axis.title.y = element_text(size=15),
           legend.text=element_text(size=15), 
           legend.title=element_text(size=15)) +
-    scale_fill_manual(labels = c("Control", "IAV"), values = c('#F8766D', '#00BFC4')))
+    scale_fill_manual(values = c(Control = "#F8766D", IAV = "#00BFC4")))
 ic_logfoldplot <- ic_logfoldplot + theme(strip.text = element_text(size= 13, face='italic'))
 ic_logfoldplot
 
