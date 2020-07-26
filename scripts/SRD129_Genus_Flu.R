@@ -46,16 +46,16 @@ phy_meta <- phy_meta[,-1]
 head(phy_meta)
 
 #Create phyloseq-class objects with "otu" and "taxo"
-FS1b <- phyloseq(otu, taxo)
-FS1b <- merge_phyloseq(FS1b, phy_meta)  #This combines the 'phy_meta' metadata with 'FS1b' phyloseq object
-colnames(tax_table(FS1b)) <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus')
-sample_sums(FS1b) #Calculate the sum of all OTUs for each sample. Almost all samples have 2000 sequences
-FS1b <- prune_taxa(taxa_sums(FS1b) > 2, FS1b)  #Removes OTUs that occur less than 2 times globally
-FS1b.genus <- tax_glom(FS1b, 'Genus')
-phyla_tab <- as.data.frame(t(FS1b.genus@otu_table)) #Transpose 'Fs1b.genus' by "otu_table"
+IAV <- phyloseq(otu, taxo)
+IAV <- merge_phyloseq(IAV, phy_meta)  #This combines the 'phy_meta' metadata with 'IAV' phyloseq object
+colnames(tax_table(IAV)) <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus')
+sample_sums(IAV) #Calculate the sum of all OTUs for each sample. Almost all samples have 2000 sequences
+IAV <- prune_taxa(taxa_sums(IAV) > 2, IAV)  #Removes OTUs that occur less than 2 times globally
+IAV.genus <- tax_glom(IAV, 'Genus')
+phyla_tab <- as.data.frame(t(IAV.genus@otu_table)) #Transpose 'IAV.genus' by "otu_table"
 head(phyla_tab)
-FS1b.genus@tax_table[,6]
-colnames(phyla_tab) <- FS1b.genus@tax_table[,6] #Replace column names in phyla_tab from Otuxxxx with Genus names
+IAV.genus@tax_table[,6]
+colnames(phyla_tab) <- IAV.genus@tax_table[,6] #Replace column names in phyla_tab from Otuxxxx with Genus names
 phyla_tab2 <- phyla_tab/rowSums(phyla_tab) #Calculate the proportion of specific phyla per phyla column in 'phyla_tab'
 head(phyla_tab2)
 phyla_tab2$group <- rownames(phyla_tab2) #Create new column called "group" in 'phyla_tab2' containing rownames
@@ -68,19 +68,15 @@ head(fobar.gather)
 
 #Check to see if there is an extra "group" column. If so, run the next set of commands (up to "head(fobar2)") and remove appropriate column
 which(colnames(phyla_tab2)=="group") #Results say column 237 is "group" column
-phyla_tab3 <- phyla_tab2[,-237] #Drop the 237th column
+phyla_tab3 <- phyla_tab2[,-405] #Drop the 405th column
 phyla_tab4 <- phyla_tab3[,colSums(phyla_tab3)>0.1] #Keep the columns that have greater than 0.1 value
 phyla_tab4$group <- rownames(phyla_tab4) #Rename rownames as "group"
 fobar2 <- merge(meta, phyla_tab4, by = 'group')
 head(fobar2)
+fobar2.gather <- fobar2 %>% gather(Genus, value, -(group:Treatment)) 
+head(fobar2.gather)
 
-#To see how many TT are in meta$Tissue: 
-length(which(meta$Tissue== "TT")) 
-#Output:
-#35
-
-fobar2.gather$day <- NULL
-
+#CONTINUE HERE
 #Reorder days 0-14 in 'fobar2.gather' plot
 levels(sample_data(fobar2.gather)$Day)
 fobar2.gather$Day <- factor(fobar2.gather$Day, levels=c("D0", "D4", "D7", "D11", "D14"))
