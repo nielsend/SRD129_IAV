@@ -54,7 +54,7 @@ SRD129.genus <- tax_glom(SRD129, taxrank = "Genus")
 
 # PRIMARY COMPARISONS TO MAKE #
 
-# NMDS plot showed that disperion is different between days, so I subsetted by day
+# NMDS plot showed that dispersion is different between days, so I subsetted by day
 
 # Important comparisons to make (significant changes in beta diversity between treatments): Compare Days 14, 21, 28 IAV and Control
 

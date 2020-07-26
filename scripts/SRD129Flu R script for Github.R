@@ -668,11 +668,9 @@ ggsave("Figure_3.tiff", plot=flu.mag2, width = 10, height = 5, dpi = 500, units 
 #Purpose: This code uses DESeq2 package to identify nasal microbial genera that were differentially abundant between treatment groups and control group
     
 #Files needed:
-#Mothur shared file: FS1bfinal.outsingletons.abund.opti_mcc.shared
-#Mothur constaxonomy file: FS1bfinal.outsingletons.abund.opti_mcc.0.03.cons.taxonomy
-#Metadata: FS1babundsingleton2000metadata.csv
-#FS1b_FinalDiffAbundNasalGenus_IC.csv
-#FS1b_FinalDiffAbundNasalGenus_FCnoRoseburia_final.csv
+#Mothur shared file: SRD129Flu.outsingletons.abund.opti_mcc.shared
+#Mothur constaxonomy file: SRD129Flu.outsingletons.abund.opti_mcc.0.03.cons.taxonomy
+#Metadata: SRD129metadata.csv
 
 #Load library packages
 library(DESeq2)
@@ -684,838 +682,626 @@ library(plotly)
 library(gapminder)
 library(cowplot)
     
-#Annotations
-#fc = infeed, control
-#ic = injected, control
-#fi = infeed, injected
-#if = injected, infeed
+#Annotation
+#IC = IAV, control
     
 #Preparing objects for DESeq2: load files
 otu2 <- import_mothur(mothur_shared_file = './data/SRD129Flu.outsingletons.abund.opti_mcc.shared')
 taxo2 <- import_mothur(mothur_constaxonomy_file = './data/SRD129Flu.outsingletons.abund.opti_mcc.0.03.cons.taxonomy')
 taxo2
 meta2 <- read.table(file = './data/SRD129metadata.csv', sep = ',', header = TRUE)
-    
-#Organize 'meta2' meta file
-rownames(meta2) <- meta2$Sample #Make names in "Sample" become rownames for 'meta2'
+
+#Organize meta file
+rownames(meta2) <- meta2$Sample
 meta2 <- meta2[,-1] #Remove Sample column
-meta2$Set <- paste(meta2$Day, meta2$Treatment, sep = '_')
+meta2$Set <- paste(meta2$Day, meta2$Treatment, sep = '_') #Create 'Set' column that combines Day and Treatment
 
 #Make phyloseq object SRD129 (combine taxonomy, OTU, and metadata)
 phy_meta2 <- sample_data(meta2) 
 SRD129 <- phyloseq(otu2, taxo2)
-SRD129 <- merge_phyloseq(SRD129, phy_meta2) #Combines the 'phy_meta2' metadata with this phyloseq object
+SRD129 <- merge_phyloseq(SRD129, phy_meta2)   #Combines the metadata with this phyloseq object
 colnames(tax_table(SRD129))
 colnames(tax_table(SRD129)) <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus')
 SRD129
 
-
-####Continue here##
-    
-#Prune samples from 'FS1b'
-FS1b <- prune_samples(sample_sums(FS1b) > 2000, FS1b)  #This removes samples that have fewer than 2000 sequences associated with them.
-FS1b <- prune_taxa(taxa_sums(FS1b) > 10, FS1b)        #This removes OTUs that occur less than 10 times globally
-tax_table(FS1b) [1:5, 1:6] #Checking what's in 'tax_table' first 5 rows, first 6 columns
-    
-#Grouping OTUs by Genus using the tax_glom function 
-FS1b.genus <- tax_glom(FS1b, taxrank = "Genus")
-#This method merges species that have the same taxonomy at a certain taxanomic rank (in this case, by "Genus"). 
+#Prune and subset by genus rank
+SRD129 <- prune_samples(sample_sums(SRD129) > 2000, SRD129)  #This removes samples that have fewer than 2000 sequences associated with them.
+SRD129 <- prune_taxa(taxa_sums(SRD129) > 10, SRD129)        #Removes OTUs that occur less than 10 times globally
+tax_table(SRD129) [1:5, 1:6]  #See what's in tax_table first 5 rows, first 6 columns
+SRD129.genus <- tax_glom(SRD129, taxrank = "Genus")
+#This method merges species that have the same taxonomy at a certain taxanomic rank. 
 #Its approach is analogous to tip_glom, but uses categorical data instead of a tree. 
-    
-######################################## PRIMARY COMPARISONS TO MAKE ####################################################
-    
-# NMDS plot showed that disperion is different between days, so I subsetted by day and tissue
-    
-# Important comparisons to make (significant changes in beta diversity between treatments)
-    
-# Compare Days 4, 7, 11 NON compared to each of the two treatments 
-# Compare Days 4, 7, 11 IM and IF
-# Compare Day 14 NON and IF
-    
-# Other comparisons to make (no significant changes in beta diversity between treatments)
-    
-# Compare Days 0, 14 IM and IF
-# Compare Day 0 NON compared to each of the two treatments
-# Compare Day 14 NON and IM
-    
-##################################################### Day 0 ############################################################
-    
-############## Day 0 Nasal #########################
-    
-sample_data(FS1b.genus)
-    
-#Convert Phyloseq Data 'FS1b.genus' to DESeq2 object 'FS1b.D0.nw.De'
-FS1b.D0.nw <- subset_samples(FS1b.genus, Day == 0 & Tissue == 'NW')
-sample_sums(FS1b.D0.nw) #Returns the total number of individuals observed from each sample
-FS1b.D0.nw <- prune_taxa(taxa_sums(FS1b.D0.nw) > 1, FS1b.D0.nw) #If taxa_sums is >1, then it will print that out in 'FS1b.D0.nw' object and not include any samples with taxa of sums <1.
-rowSums(FS1b.D0.nw@otu_table)
-FS1b.D0.nw.De <- phyloseq_to_deseq2(FS1b.D0.nw, ~ Set) # "~Set" : define the major sample covariate as the study design factor. This will be whatever you want to group data by, whatever column you used to designate ellipses with
-FS1b.D0.nw.De <- DESeq(FS1b.D0.nw.De, test = "Wald", fitType = "parametric") #Differential expression analysis based on the negative binomial (aka Gamma-Poisson) distribution
-    
-######### Day 0 Nasal IF vs NON ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "0_NW_IF")
-#Output:
-#IF = 19
-sum(meta2$Set == "0_NW_NON")
-#Output:
-#NON = 18
-    
-#Extract results from 'FS1b.D0.nw.De' DESeq object and organize into 'sigtab.D0.fc' table
-res.D0.fc = results(FS1b.D0.nw.De, contrast=c("Set","0_NW_IF","0_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D0.fc
-sigtab.D0.fc = res.D0.fc[which(res.D0.fc$padj < .05), ]
-sigtab.D0.fc = cbind(as(sigtab.D0.fc, "data.frame"), as(tax_table(FS1b.D0.nw)[rownames(sigtab.D0.fc), ], "matrix")) #"cbind" combines all columns together, regardless of rownames (if you want to match by rownames, use merge function)
-format(sigtab.D0.fc$padj, scientific = TRUE)
-sigtab.D0.fc$newp <- format(round(sigtab.D0.fc$padj, digits = 3), scientific = TRUE)
-sigtab.D0.fc$Treatment <- ifelse(sigtab.D0.fc$log2FoldChange >=0, "IF", "NON") #Assigning "IF" = yes, "NON" = no; it's important to make sure you have the correct group names in the "yes" and "no" position for "ifelse" function
-sigtab.D0.fc
-    
-#Summarize 'sigtab.D0.fc' table
-sum.sigtab.D0.fc <- summary(sigtab.D0.fc)
-sum.sigtab.D0.fc
-    
-#plot 'sigtab.D0.fc'
-deseq.D0.fc <- ggplot(sigtab.D0.fc, aes(x=reorder(rownames(sigtab.D0.fc), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D0.fc), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IF Relative to NON at Nasal Site on Day 0')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF", "NON"), values = c('#E69F00', '#999999'))
-# "reorder" makes the logfold changes appear in numerical order (largest logfold value at the top and at the bottom of the plot), making it easier to see
-deseq.D0.fc
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D0.fc'
-sigtab.D0.fc$OTU <- rownames(sigtab.D0.fc)
-sigtab.D0.fc$comp <- 'D0_nasal_IFvsNON'
-    
-#Create a final table ('final.nonsigtab') that lists all genera that were differentially abundant between IF and NON treatment groups from 'sigtab.D0.fc'. 
-#Other within-day comparisons that had no significant changes in beta diversity between two treatment groups will be added to 'final.nonsigtab'.
-final.nonsigtab <- sigtab.D0.fc
-    
-########## Day 0 Nasal IM vs NON  ####################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "0_NW_IM")
-#Output:
-#IM = 19
-sum(meta2$Set == "0_NW_NON")
-#Output:
-#NON = 18
-    
-#Extract results from 'FS1b.D0.nw.De' DESeq object and organize into 'sigtab.D0.ic' table
-FS1b.D0.nw.De$Set
-res.D0.ic = results(FS1b.D0.nw.De, contrast=c("Set","0_NW_IM","0_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+
+
+
+# PRIMARY COMPARISONS TO MAKE #
+
+# NMDS plot showed that dispersion is different between days, so I subsetted by day
+
+# Important comparisons to make (significant changes in beta diversity between treatments): Compare Days 14, 21, 28 IAV and Control
+
+# Other comparisons to make (no significant changes in beta diversity between treatments): Compare Days 0, 1, 3, 7, 10, 36, 42 IAV and Control
+
+
+################################################## Day 0 Nasal #########################################################
+
+sample_data(SRD129.genus)
+SRD129.D0 <- subset_samples(SRD129.genus, Day == 'D0')
+sample_sums(SRD129.D0)
+colnames(otu_table(SRD129.D0)) #Check on all the sample names
+SRD129.D0 <- prune_taxa(taxa_sums(SRD129.D0) > 1, SRD129.D0)
+#If taxa_sums is >1, then it will print that out in SRD129.D0 object and not include anything with <1.
+rowSums(SRD129.D0@otu_table)
+SRD129.D0.De <- phyloseq_to_deseq2(SRD129.D0, ~ Set)
+# ~Set: whatever you want to group data by and use to designate ellipses with
+SRD129.D0.De <- DESeq(SRD129.D0.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using "meta2" dataframe): 
+sum(meta2$Set == "D0_IAV")
+#IAV = 10
+sum(meta2$Set == "D0_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D0.De$Set
+res.D0.ic = results(SRD129.D0.De, contrast=c("Set","D0_IAV","D0_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D0.ic = res.D0.ic[which(res.D0.ic$padj < .05), ]
-sigtab.D0.ic = cbind(as(sigtab.D0.ic, "data.frame"), as(tax_table(FS1b.D0.nw)[rownames(sigtab.D0.ic), ], "matrix"))
+sigtab.D0.ic = cbind(as(sigtab.D0.ic, "data.frame"), as(tax_table(SRD129.D0)[rownames(sigtab.D0.ic), ], "matrix"))
 format(sigtab.D0.ic$padj, scientific = TRUE)
 sigtab.D0.ic$newp <- format(round(sigtab.D0.ic$padj, digits = 3), scientific = TRUE)
-sigtab.D0.ic$Treatment <- ifelse(sigtab.D0.ic$log2FoldChange >=0, "IM", "NON")
-    
-#Summarize 'sigtab.D0.ic' table
+sigtab.D0.ic$Treatment <- ifelse(sigtab.D0.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D0.ic
 sum.sigtab.D0.ic <- summary(sigtab.D0.ic)
 sum.sigtab.D0.ic
-    
-#Plot 'sigtab.D0.ic'
+
+#ggplot
 deseq.D0.ic <- ggplot(sigtab.D0.ic, aes(x=reorder(rownames(sigtab.D0.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D0.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to NON at Nasal Site on Day 0')+ coord_flip() +
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IM", "NON"), values = c('#56B4E9', '#999999'))
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D0.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 0')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control="#999999", IAV = "#CC0066"))
 deseq.D0.ic
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D0.ic'
+
+#Add OTU and comparisons columns
+sigtab.D0.ic
 sigtab.D0.ic$OTU <- rownames(sigtab.D0.ic)
 sigtab.D0.ic
-sigtab.D0.ic$comp <- 'D0_nasal_IMvsNON'
-    
-#Add all genera that were differentially abundant between IM and NON treatment groups from 'sigtab.D0.ic' to 'final.nonsigtab' 
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D0.ic)
-    
-######### Day 0 Nasal IM vs IF ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "0_NW_IF")
-#Output:
-#IF = 19
-sum(meta2$Set == "0_NW_IM")
-#Output:
-#IM = 19
-    
-#Extract results from 'FS1b.D0.nw.De' DESeq object and organize into 'sigtab.D0.if' table
-res.D0.if = results(FS1b.D0.nw.De, contrast=c("Set","0_NW_IM","0_NW_IF"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D0.if
-sigtab.D0.if = res.D0.if[which(res.D0.if$padj < .05), ]
-sigtab.D0.if = cbind(as(sigtab.D0.if, "data.frame"), as(tax_table(FS1b.D0.nw)[rownames(sigtab.D0.if), ], "matrix"))
-format(sigtab.D0.if$padj, scientific = TRUE)
-sigtab.D0.if$newp <- format(round(sigtab.D0.if$padj, digits = 3), scientific = TRUE)
-sigtab.D0.if$Treatment <- ifelse(sigtab.D0.if$log2FoldChange >=0, "IM", "IF")
-sigtab.D0.if
-    
-#Summarize 'sigtab.D0.if' table
-sum.sigtab.D0.if <- summary(sigtab.D0.if)
-sum.sigtab.D0.if
-    
-#Plot 'sigtab.D0.if'
-deseq.D0.if <- ggplot(sigtab.D0.if, aes(x=reorder(rownames(sigtab.D0.if), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D0.if), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to IF at Nasal Site on Day 0')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust = 0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF", "IM"), values = c('#E69F00', '#56B4E9'))
-deseq.D0.if
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D0.if'
-sigtab.D0.if$OTU <- rownames(sigtab.D0.if)
-sigtab.D0.if$comp <- 'D0_nasal_IMvsIF'
-    
-#Add all genera that were differentially abundant between IM and IF treatment groups from 'sigtab.D0.if' to 'final.nonsigtab' 
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D0.if)
-    
-    
-    
-##################################################### Day 4 ############################################################
-    
-############## Day 4 Nasal #########################
-    
-#Convert Phyloseq Data 'FS1b.genus' to DESeq2 object 'FS1b.D4.nw.De'
-FS1b.D4.nw <- subset_samples(FS1b.genus, Day == 4 & Tissue == 'NW')
-sample_sums(FS1b.D4.nw)
-FS1b.D4.nw <- prune_taxa(taxa_sums(FS1b.D4.nw) > 1, FS1b.D4.nw)
-rowSums(FS1b.D4.nw@otu_table)
-FS1b.D4.nw.De <- phyloseq_to_deseq2(FS1b.D4.nw, ~ Set)
-FS1b.D4.nw.De <- DESeq(FS1b.D4.nw.De, test = "Wald", fitType = "parametric")
-    
-######### Day 4 Nasal IF vs NON ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "4_NW_IF")
-#Output:
-#IF = 20
-sum(meta2$Set == "4_NW_NON")
-#Output:
-#NON = 22
-    
-#Extract results from 'FS1b.D4.nw.De' DESeq object and organize into 'sigtab.D4.fc' table
-res.D4.fc = results(FS1b.D4.nw.De, contrast=c("Set","4_NW_IF","4_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D4.fc
-sigtab.D4.fc = res.D4.fc[which(res.D4.fc$padj < .05), ]
-sigtab.D4.fc = cbind(as(sigtab.D4.fc, "data.frame"), as(tax_table(FS1b.D4.nw)[rownames(sigtab.D4.fc), ], "matrix"))
-format(sigtab.D4.fc$padj, scientific = TRUE)
-sigtab.D4.fc$newp <- format(round(sigtab.D4.fc$padj, digits = 3), scientific = TRUE)
-sigtab.D4.fc$Treatment <- ifelse(sigtab.D4.fc$log2FoldChange >=0, "IF", "NON")
-sigtab.D4.fc
-    
-#Plot 'sigtab.D4.fc'
-deseq.D4.fc <- ggplot(sigtab.D4.fc, aes(x=reorder(rownames(sigtab.D4.fc), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D4.fc), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IF Relative to NON at Nasal Site on Day 4')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF", "NON"), values = c('#E69F00', "#999999"))
-deseq.D4.fc
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D4.fc'
-sigtab.D4.fc$OTU <- rownames(sigtab.D4.fc)
-sigtab.D4.fc$comp <- 'D4_nasal_IFvsNON'
-#If there are duplicate OTU rownames, it'll add an extra "1, 2, 3" etc. in numerical order at the end of the rowname
-    
-#Create a final table ('final.sigtab') that lists all genera that were differentially abundant between IF and NON treatment groups from 'sigtab.D4.fc'. 
-#Other within-day comparisons that had significant changes in beta diversity between two treatment groups will be added to 'final.sigtab'.
-final.sigtab <- sigtab.D4.fc
-    
-########## Day 4 Nasal IM vs NON  ####################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "4_NW_IM")
-#Output:
-#IM = 22
-sum(meta2$Set == "4_NW_NON")
-#Output:
-#NON = 22
-    
-#Extract results from 'FS1b.D4.nw.De' DESeq object and organize into 'sigtab.D4.ic' table
-FS1b.D4.nw.De
-res.D4.ic = results(FS1b.D4.nw.De, contrast=c("Set","4_NW_IM","4_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-sigtab.D4.ic = res.D4.ic[which(res.D4.ic$padj < .05), ]
-sigtab.D4.ic = cbind(as(sigtab.D4.ic, "data.frame"), as(tax_table(FS1b.D4.nw)[rownames(sigtab.D4.ic), ], "matrix"))
-format(sigtab.D4.ic$padj, scientific = TRUE)
-sigtab.D4.ic$newp <- format(round(sigtab.D4.ic$padj, digits = 3), scientific = TRUE)
-sigtab.D4.ic$Treatment <- ifelse(sigtab.D4.ic$log2FoldChange >=0, "IM", "NON")
-    
-#Plot 'sigtab.D4.ic'
-deseq.D4.ic <- ggplot(sigtab.D4.ic, aes(x=reorder(rownames(sigtab.D4.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D4.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to NON at Nasal Site on Day 4')+ coord_flip() +
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IM","NON"), values = c('#56B4E9', '#999999'))
-deseq.D4.ic
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D4.ic'
-sigtab.D4.ic
-sigtab.D4.ic$OTU <- rownames(sigtab.D4.ic)
-sigtab.D4.ic
-sigtab.D4.ic$comp <- 'D4_nasal_IMvsNON'
-    
-#Add all genera that were differentially abundant between IM and NON treatment groups from 'sigtab.D4.ic' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D4.ic)
-    
-######### Day 4 Nasal IM vs IF ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "4_NW_IF")
-#Output:
-#IF = 20
-sum(meta2$Set == "4_NW_IM")
-#Output:
-#IM = 22
-    
-#Extract results from 'FS1b.D4.nw.De' DESeq object and organize into 'sigtab.D4.if' table
-res.D4.if = results(FS1b.D4.nw.De, contrast=c("Set","4_NW_IM","4_NW_IF"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D4.if
-sigtab.D4.if = res.D4.if[which(res.D4.if$padj < .05), ]
-sigtab.D4.if = cbind(as(sigtab.D4.if, "data.frame"), as(tax_table(FS1b.D4.nw)[rownames(sigtab.D4.if), ], "matrix"))
-format(sigtab.D4.if$padj, scientific = TRUE)
-sigtab.D4.if$newp <- format(round(sigtab.D4.if$padj, digits = 3), scientific = TRUE)
-sigtab.D4.if$Treatment <- ifelse(sigtab.D4.if$log2FoldChange >=0, "IM", "IF")
-sigtab.D4.if
-    
-#Plot 'sigtab.D4.if'
-deseq.D4.if <- ggplot(sigtab.D4.if, aes(x=reorder(rownames(sigtab.D4.if), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D4.if), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to IF at Nasal Site on Day 4')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c('IF' , 'IM'), values = c('#E69F00', '#56B4EF'))
-deseq.D4.if
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D4.if'
-sigtab.D4.if$OTU <- rownames(sigtab.D4.if)
-sigtab.D4.if$comp <- 'D4_nasal_IMvsIF'
-    
-#Add all genera that were differentially abundant between IM and IF treatment groups from 'sigtab.D4.if' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D4.if)
-    
-################################################## Day 7 ############################################################
-    
-########## Day 7 Nasal #####################
-    
-#Convert Phyloseq Data 'FS1b.genus' to DESeq2 object 'FS1b.D7.nw.De'
-FS1b.D7.nw <- subset_samples(FS1b.genus, Day == 7 & Tissue == 'NW')
-sample_sums(FS1b.D7.nw)
-FS1b.D7.nw <- prune_taxa(taxa_sums(FS1b.D7.nw) > 1, FS1b.D7.nw)
-rowSums(FS1b.D7.nw@otu_table)
-FS1b.D7.nw.De <- phyloseq_to_deseq2(FS1b.D7.nw, ~ Set)
-FS1b.D7.nw.De <- DESeq(FS1b.D7.nw.De, test = "Wald", fitType = "parametric")
-FS1b.D7.nw.De$Set
-    
-########## Day 7 Nasal IF vs NON #####################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "7_NW_IF")
-#Output:
-#IF = 14
-sum(meta2$Set == "7_NW_NON")
-#Output:
-#NON = 15
-    
-#Extract results from 'FS1b.D7.nw.De' DESeq object and organize into 'sigtab.D7.fc' table
-res.D7.fc = results(FS1b.D7.nw.De, contrast=c("Set","7_NW_IF","7_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-sigtab.D7.fc = res.D7.fc[which(res.D7.fc$padj < .05), ]
-sigtab.D7.fc = cbind(as(sigtab.D7.fc, "data.frame"), as(tax_table(FS1b.D7.nw)[rownames(sigtab.D7.fc), ], "matrix"))
-format(sigtab.D7.fc$padj, scientific = TRUE)
-sigtab.D7.fc$newp <- format(round(sigtab.D7.fc$padj, digits = 3), scientific = TRUE)
-sigtab.D7.fc$Treatment <- ifelse(sigtab.D7.fc$log2FoldChange >=0, "IF", "NON")
-    
-#Plot 'sigtab.D7.fc'
-deseq.D7.fc <- ggplot(sigtab.D7.fc, aes(x=reorder(rownames(sigtab.D7.fc), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D7.fc), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IF Relative to NON at Nasal Site on Day 7')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF","NON"), values = c('#E69F00','#999999'))
-deseq.D7.fc
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D7.fc'
-sigtab.D7.fc$OTU <- rownames(sigtab.D7.fc)
-sigtab.D7.fc$comp <- 'D7_nasal_IFvsNON'
-    
-#Add all genera that were differentially abundant between IF and NON treatment groups from 'sigtab.D7.fc' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D7.fc)
-    
-############# Day 7 Nasal IM vs NON  ######################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "7_NW_IM")
-#Output:
-#IM = 15
-sum(meta2$Set == "7_NW_NON")
-#Output:
-#NON = 15
-    
-#Extract results from 'FS1b.D7.nw.De' DESeq object and organize into 'sigtab.D7.ic' table
-FS1b.D7.nw.De
-res.D7.ic = results(FS1b.D7.nw.De, contrast=c("Set","7_NW_IM","7_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-#results(FS1b.D7.nw.De, contrast=c("Set","7_NW_IM","7_NW_NON")) 
+sigtab.D0.ic$comp <- 'D0_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(sigtab.D0.ic)
+
+################################################## Day 1 Nasal ######################################################################
+
+sample_data(SRD129.genus)
+SRD129.D1 <- subset_samples(SRD129.genus, Day == 'D1')
+sample_sums(SRD129.D1)
+colnames(otu_table(SRD129.D1)) #check on all the sample names
+SRD129.D1 <- prune_taxa(taxa_sums(SRD129.D1) > 1, SRD129.D1)
+rowSums(SRD129.D1@otu_table)
+SRD129.D1.De <- phyloseq_to_deseq2(SRD129.D1, ~ Set)
+SRD129.D1.De <- DESeq(SRD129.D1.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D1_IAV")
+#IAV = 10
+sum(meta2$Set == "D1_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D1.De$Set
+res.D1.ic = results(SRD129.D1.De, contrast=c("Set","D1_IAV","D1_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D1.ic = res.D1.ic[which(res.D1.ic$padj < .05), ]
+sigtab.D1.ic = cbind(as(sigtab.D1.ic, "data.frame"), as(tax_table(SRD129.D1)[rownames(sigtab.D1.ic), ], "matrix"))
+format(sigtab.D1.ic$padj, scientific = TRUE)
+sigtab.D1.ic$newp <- format(round(sigtab.D1.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D1.ic$Treatment <- ifelse(sigtab.D1.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D1.ic
+sum.sigtab.D1.ic <- summary(sigtab.D1.ic)
+sum.sigtab.D1.ic
+
+#ggplot
+deseq.D1.ic <- ggplot(sigtab.D1.ic, aes(x=reorder(rownames(sigtab.D1.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D1.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 1')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D1.ic
+
+#Add OTU and comparisons columns
+sigtab.D1.ic
+sigtab.D1.ic$OTU <- rownames(sigtab.D1.ic)
+sigtab.D1.ic
+sigtab.D1.ic$comp <- 'D1_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D1.ic)
+
+################################################## Day 3 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D3 <- subset_samples(SRD129.genus, Day == 'D3')
+sample_sums(SRD129.D3)
+colnames(otu_table(SRD129.D3)) #check on all the sample names
+SRD129.D3 <- prune_taxa(taxa_sums(SRD129.D3) > 1, SRD129.D3)
+rowSums(SRD129.D3@otu_table)
+SRD129.D3.De <- phyloseq_to_deseq2(SRD129.D3, ~ Set)
+SRD129.D3.De <- DESeq(SRD129.D3.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D3_IAV")
+#IAV = 10
+sum(meta2$Set == "D3_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D3.De$Set
+res.D3.ic = results(SRD129.D3.De, contrast=c("Set","D3_IAV","D3_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D3.ic = res.D3.ic[which(res.D3.ic$padj < .05), ]
+sigtab.D3.ic = cbind(as(sigtab.D3.ic, "data.frame"), as(tax_table(SRD129.D3)[rownames(sigtab.D3.ic), ], "matrix"))
+format(sigtab.D3.ic$padj, scientific = TRUE)
+sigtab.D3.ic$newp <- format(round(sigtab.D3.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D3.ic$Treatment <- ifelse(sigtab.D3.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D3.ic
+sum.sigtab.D3.ic <- summary(sigtab.D3.ic)
+sum.sigtab.D3.ic
+
+#ggplot
+deseq.D3.ic <- ggplot(sigtab.D3.ic, aes(x=reorder(rownames(sigtab.D3.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D3.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 3')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D3.ic
+
+#Add OTU and comparisons columns
+sigtab.D3.ic
+sigtab.D3.ic$OTU <- rownames(sigtab.D3.ic)
+sigtab.D3.ic
+sigtab.D3.ic$comp <- 'D3_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D3.ic)
+
+################################################## Day 7 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D7 <- subset_samples(SRD129.genus, Day == 'D7')
+sample_sums(SRD129.D7)
+colnames(otu_table(SRD129.D7)) #check on all the sample names
+SRD129.D7 <- prune_taxa(taxa_sums(SRD129.D7) > 1, SRD129.D7)
+rowSums(SRD129.D7@otu_table)
+SRD129.D7.De <- phyloseq_to_deseq2(SRD129.D7, ~ Set)
+SRD129.D7.De <- DESeq(SRD129.D7.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D7_IAV")
+#IAV = 10
+sum(meta2$Set == "D7_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D7.De$Set
+res.D7.ic = results(SRD129.D7.De, contrast=c("Set","D7_IAV","D7_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D7.ic = res.D7.ic[which(res.D7.ic$padj < .05), ]
-sigtab.D7.ic = cbind(as(sigtab.D7.ic, "data.frame"), as(tax_table(FS1b.D7.nw)[rownames(sigtab.D7.ic), ], "matrix"))
+sigtab.D7.ic = cbind(as(sigtab.D7.ic, "data.frame"), as(tax_table(SRD129.D7)[rownames(sigtab.D7.ic), ], "matrix"))
 format(sigtab.D7.ic$padj, scientific = TRUE)
 sigtab.D7.ic$newp <- format(round(sigtab.D7.ic$padj, digits = 3), scientific = TRUE)
-sigtab.D7.ic$Treatment <- ifelse(sigtab.D7.ic$log2FoldChange >=0, "IM", "NON")
-    
-#Plot 'sigtab.D7.ic'
+sigtab.D7.ic$Treatment <- ifelse(sigtab.D7.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D7.ic
+sum.sigtab.D7.ic <- summary(sigtab.D7.ic)
+sum.sigtab.D7.ic
+
+#ggplot
 deseq.D7.ic <- ggplot(sigtab.D7.ic, aes(x=reorder(rownames(sigtab.D7.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D7.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to NON at Nasal Site on Day 7')+ coord_flip() +
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IM","NON"), values = c('#56B4EF', '#999999'))
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D7.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 7')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D7.ic
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D7.ic'
+
+#Add OTU and comparisons columns
+sigtab.D7.ic
 sigtab.D7.ic$OTU <- rownames(sigtab.D7.ic)
-sigtab.D7.ic$comp <- 'D7_nasal_IMvsNON'
-    
-#Add all genera that were differentially abundant between IM and NON treatment groups from 'sigtab.D7.ic' to 'final.sigtab' 
+sigtab.D7.ic
+sigtab.D7.ic$comp <- 'D7_IAVvsControl'
+
+#Create final significant comparisons table
 final.sigtab <- rbind(final.sigtab, sigtab.D7.ic)
-    
-######### Day 7 Nasal Wash IM vs IF ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "7_NW_IF")
-#Output:
-#IF = 14
-sum(meta2$Set == "7_NW_IM")
-#Output:
-#IM = 15
-    
-#Extract results from 'FS1b.D7.nw.De' DESeq object and organize into 'sigtab.D7.if' table
-res.D7.if = results(FS1b.D7.nw.De, contrast=c("Set","7_NW_IM","7_NW_IF"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D7.if
-sigtab.D7.if = res.D7.if[which(res.D7.if$padj < .05), ]
-sigtab.D7.if = cbind(as(sigtab.D7.if, "data.frame"), as(tax_table(FS1b.D7.nw)[rownames(sigtab.D7.if), ], "matrix"))
-format(sigtab.D7.if$padj, scientific = TRUE)
-sigtab.D7.if$newp <- format(round(sigtab.D7.if$padj, digits = 3), scientific = TRUE)
-sigtab.D7.if$Treatment <- ifelse(sigtab.D7.if$log2FoldChange >=0, "IM", "IF")
-sigtab.D7.if
-    
-#Plot 'sigtab.D7.if'
-deseq.D7.if <- ggplot(sigtab.D7.if, aes(x=reorder(rownames(sigtab.D7.if), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D7.if), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to IF at Nasal Site on Day 7')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c('IF', 'IM'), values = c('#E69F00', '#56B4EF'))
-deseq.D7.if
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D7.if'
-sigtab.D7.if$OTU <- rownames(sigtab.D7.if)
-sigtab.D7.if$comp <- 'D7_nasal_IMvsIF'
-    
-#Add all genera that were differentially abundant between IM and IF treatment groups from 'sigtab.D7.if' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D7.if)
-    
-################################################## Day 11 ############################################################
-    
-############## Day 11 Nasal ###############
-    
-#Convert Phyloseq Data 'FS1b.genus' to DESeq2 object 'FS1b.D11.nw.De'
-FS1b.D11.nw <- subset_samples(FS1b.genus, Day == 11 & Tissue == 'NW')
-sample_sums(FS1b.D11.nw)
-FS1b.D11.nw <- prune_taxa(taxa_sums(FS1b.D11.nw) > 1, FS1b.D11.nw)
-rowSums(FS1b.D11.nw@otu_table)
-FS1b.D11.nw.De <- phyloseq_to_deseq2(FS1b.D11.nw, ~ Set)
-FS1b.D11.nw.De <- DESeq(FS1b.D11.nw.De, test = "Wald", fitType = "parametric")
-FS1b.D11.nw.De$Set
-    
-############## Day 11 Nasal IF vs NON ###############
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "11_NW_IF")
-#Output:
-#IF = 7
-sum(meta2$Set == "11_NW_NON")
-#Output:
-#IM = 8
-    
-#Extract results from 'FS1b.D11.nw.De' DESeq object and organize into 'sigtab.D11.fc' table
-res.D11.fc = results(FS1b.D11.nw.De, contrast=c("Set","11_NW_IF","11_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-sigtab.D11.fc = res.D11.fc[which(res.D11.fc$padj < .05), ]
-sigtab.D11.fc = cbind(as(sigtab.D11.fc, "data.frame"), as(tax_table(FS1b.D11.nw)[rownames(sigtab.D11.fc), ], "matrix"))
-format(sigtab.D11.fc$padj, scientific = TRUE)
-sigtab.D11.fc$newp <- format(round(sigtab.D11.fc$padj, digits = 3), scientific = TRUE)
-sigtab.D11.fc$Treatment <- ifelse(sigtab.D11.fc$log2FoldChange >=0, "IF", "NON")
-    
-#Plot 'sigtab.D11.fc'
-deseq.D11.fc <- ggplot(sigtab.D11.fc, aes(x=reorder(rownames(sigtab.D11.fc), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D11.fc), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IF Relative to NON at Nasal Site on Day 11')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF", "NON"), values = c('#E69F00', '#999999'))
-deseq.D11.fc
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D11.fc'
-sigtab.D11.fc$OTU <- rownames(sigtab.D11.fc)
-sigtab.D11.fc$comp <- 'D11_nasal_IFvsNON'
-    
-#Add all genera that were differentially abundant between IF and NON treatment groups from 'sigtab.D11.fc' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D11.fc)
-    
-########### Day 11 Nasal IM vs NON  ############
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "11_NW_IM")
-#Output:
-#IF = 7
-sum(meta2$Set == "11_NW_NON")
-#Output:
-#IM = 8
-    
-#Extract results from 'FS1b.D11.nw.De' DESeq object and organize into 'sigtab.D11.ic' table
-FS1b.D11.nw.De$Set
-res.D11.ic = results(FS1b.D11.nw.De, contrast=c("Set","11_NW_IM","11_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-sigtab.D11.ic = res.D11.ic[which(res.D11.ic$padj < .05), ]
-sigtab.D11.ic = cbind(as(sigtab.D11.ic, "data.frame"), as(tax_table(FS1b.D11.nw)[rownames(sigtab.D11.ic), ], "matrix"))
-format(sigtab.D11.ic$padj, scientific = TRUE)
-sigtab.D11.ic$newp <- format(round(sigtab.D11.ic$padj, digits = 3), scientific = TRUE)
-sigtab.D11.ic$Treatment <- ifelse(sigtab.D11.ic$log2FoldChange >=0, "IM", "NON")
-    
-#Plot 'sigtab.D11.ic'
-deseq.D11.ic <- ggplot(sigtab.D11.ic, aes(x=reorder(rownames(sigtab.D11.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D11.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to NON at Nasal Site on Day 11')+ coord_flip() +
-      theme(plot.title = element_text(size = 20), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IM", "NON"), values = c('#56B4EF', '#999999'))
-deseq.D11.ic
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D11.ic'
-sigtab.D11.ic$OTU <- rownames(sigtab.D11.ic)
-sigtab.D11.ic$comp <- 'D11_nasal_IMvsNON'
-    
-#Add all genera that were differentially abundant between IM and NON treatment groups from 'sigtab.D11.ic' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D11.ic)
-    
-######### Day 11 Nasal IM vs IF ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "11_NW_IM")
-#Output:
-#IF = 7
-sum(meta2$Set == "11_NW_IF")
-#Output:
-#IM = 7
-    
-#Extract results from 'FS1b.D11.nw.De' DESeq object and organize into 'sigtab.D11.if' table
-res.D11.if = results(FS1b.D11.nw.De, contrast=c("Set","11_NW_IM","11_NW_IF"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D11.if
-sigtab.D11.if = res.D11.if[which(res.D11.if$padj < .05), ]
-sigtab.D11.if = cbind(as(sigtab.D11.if, "data.frame"), as(tax_table(FS1b.D11.nw)[rownames(sigtab.D11.if), ], "matrix"))
-format(sigtab.D11.if$padj, scientific = TRUE)
-sigtab.D11.if$newp <- format(round(sigtab.D11.if$padj, digits = 3), scientific = TRUE)
-sigtab.D11.if$Treatment <- ifelse(sigtab.D11.if$log2FoldChange >=0, "IM", "IF")
-sigtab.D11.if
-    
-#Plot 'sigtab.D11.if'
-deseq.D11.if <- ggplot(sigtab.D11.if, aes(x=reorder(rownames(sigtab.D11.if), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D11.if), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to IF at Nasal Site on Day 11')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c('IF', 'IM'), values = c('#E69F00', '#56B4E9'))
-deseq.D11.if
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D11.if'
-sigtab.D11.if$OTU <- rownames(sigtab.D11.if)
-sigtab.D11.if$comp <- 'D11_nasal_IMvsIF'
-    
-#Add all genera that were differentially abundant between IM and IF treatment groups from 'sigtab.D11.if' to 'final.sigtab'
-final.sigtab <- rbind(final.sigtab, sigtab.D11.if)
-    
-################################################## Day 14 ############################################################
-    
-########### D14 Nasal IF vs NON################
-    
-#Convert Phyloseq Data 'FS1b.genus' to DESeq2 object 'FS1b.D14.nw.De'
-FS1b.D14.nw <- subset_samples(FS1b.genus, Day == 14 & Tissue == 'NW')
-sample_sums(FS1b.D14.nw)
-FS1b.D14.nw <- prune_taxa(taxa_sums(FS1b.D14.nw) > 1, FS1b.D14.nw)
-rowSums(FS1b.D14.nw@otu_table)
-FS1b.D14.nw.De <- phyloseq_to_deseq2(FS1b.D14.nw, ~ Set)
-FS1b.D14.nw.De <- DESeq(FS1b.D14.nw.De, test = "Wald", fitType = "parametric")
-FS1b.D14.nw.De$Set
-    
-########### D14 Nasal IF vs NON################
-    
-#Extract results from 'FS1b.D14.nw.De' DESeq object and organize into 'sigtab.D14.fc' table
-FS1b.D14.nw.De$Set
-res.D14.fc = results(FS1b.D14.nw.De, contrast=c("Set","14_NW_IF","14_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-sigtab.D14.fc = res.D14.fc[which(res.D14.fc$padj < .05), ]
-sigtab.D14.fc = cbind(as(sigtab.D14.fc, "data.frame"), as(tax_table(FS1b.D14.nw)[rownames(sigtab.D14.fc), ], "matrix"))
-sigtab.D14.fc
-format(sigtab.D14.fc$padj, scientific = TRUE)
-sigtab.D14.fc$newp <- format(round(sigtab.D14.fc$padj, digits = 3), scientific = TRUE)
-sigtab.D14.fc$Treatment <- ifelse(sigtab.D14.fc$log2FoldChange >=0, "IF", "NON")
-    
-#Plot 'sigtab.D14.fc'
-deseq.D14.fc <- ggplot(sigtab.D14.fc, aes(x=reorder(rownames(sigtab.D14.fc), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D14.fc), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IF Relative to NON at Nasal Site on Day 14')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IF", "NON"), values = c('#E69F00', '#999999'))
-deseq.D14.fc
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D14.fc'
-sigtab.D14.fc$OTU <- rownames(sigtab.D14.fc)
-sigtab.D14.fc$comp <- 'D14_nasal_IFvsNON'
-    
-#Add all genera that were differentially abundant between IF and NON treatment groups from 'sigtab.D14.fc' to 'final.sigtab' 
-final.sigtab <- rbind(final.sigtab, sigtab.D14.fc)
-    
-#Write 'final.sigtab' into csv file
-write.csv(final.sigtab, file= "Nasal_FinalDiffAbundGenus.csv")
-    
-########### Day 14 Nasal IM vs NON  ############
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe:
-sum(meta2$Set == "14_NW_IM")
-#Output:
-#IF = 6
-sum(meta2$Set == "14_NW_NON")
-#Output:
-#IM = 8
-    
-#Extract results from 'FS1b.D14.nw.De' DESeq object and organize into 'sigtab.D14.ic' table
-FS1b.D14.nw.De$Set
-res.D14.ic = results(FS1b.D14.nw.De, contrast=c("Set","14_NW_IM","14_NW_NON"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+
+################################################## Day 10 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D10 <- subset_samples(SRD129.genus, Day == 'D10')
+sample_sums(SRD129.D10)
+colnames(otu_table(SRD129.D10)) #check on all the sample names
+SRD129.D10 <- prune_taxa(taxa_sums(SRD129.D10) > 1, SRD129.D10)
+rowSums(SRD129.D10@otu_table)
+SRD129.D10.De <- phyloseq_to_deseq2(SRD129.D10, ~ Set)
+SRD129.D10.De <- DESeq(SRD129.D10.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D10_IAV")
+#IAV = 10
+sum(meta2$Set == "D10_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D10.De$Set
+res.D10.ic = results(SRD129.D10.De, contrast=c("Set","D10_IAV","D10_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D10.ic = res.D10.ic[which(res.D10.ic$padj < .05), ]
+sigtab.D10.ic = cbind(as(sigtab.D10.ic, "data.frame"), as(tax_table(SRD129.D10)[rownames(sigtab.D10.ic), ], "matrix"))
+format(sigtab.D10.ic$padj, scientific = TRUE)
+sigtab.D10.ic$newp <- format(round(sigtab.D10.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D10.ic$Treatment <- ifelse(sigtab.D10.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D10.ic
+sum.sigtab.D10.ic <- summary(sigtab.D10.ic)
+sum.sigtab.D10.ic
+
+#ggplot
+deseq.D10.ic <- ggplot(sigtab.D10.ic, aes(x=reorder(rownames(sigtab.D10.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D10.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 10')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D10.ic
+
+#Add OTU and comparisons columns
+sigtab.D10.ic
+sigtab.D10.ic$OTU <- rownames(sigtab.D10.ic)
+sigtab.D10.ic
+sigtab.D10.ic$comp <- 'D10_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D10.ic)
+
+################################################## Day 14 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D14 <- subset_samples(SRD129.genus, Day == 'D14')
+sample_sums(SRD129.D14)
+colnames(otu_table(SRD129.D14)) #check on all the sample names
+SRD129.D14 <- prune_taxa(taxa_sums(SRD129.D14) > 1, SRD129.D14)
+rowSums(SRD129.D14@otu_table)
+SRD129.D14.De <- phyloseq_to_deseq2(SRD129.D14, ~ Set)
+SRD129.D14.De <- DESeq(SRD129.D14.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D14_IAV")
+#IAV = 10
+sum(meta2$Set == "D14_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D14.De$Set
+res.D14.ic = results(SRD129.D14.De, contrast=c("Set","D14_IAV","D14_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
 sigtab.D14.ic = res.D14.ic[which(res.D14.ic$padj < .05), ]
-sigtab.D14.ic = cbind(as(sigtab.D14.ic, "data.frame"), as(tax_table(FS1b.D14.nw)[rownames(sigtab.D14.ic), ], "matrix"))
+sigtab.D14.ic = cbind(as(sigtab.D14.ic, "data.frame"), as(tax_table(SRD129.D14)[rownames(sigtab.D14.ic), ], "matrix"))
 format(sigtab.D14.ic$padj, scientific = TRUE)
 sigtab.D14.ic$newp <- format(round(sigtab.D14.ic$padj, digits = 3), scientific = TRUE)
-sigtab.D14.ic$Treatment <- ifelse(sigtab.D14.ic$log2FoldChange >=0, "IM", "NON")
-    
-#Plot 'sigtab.D14.ic'
+sigtab.D14.ic$Treatment <- ifelse(sigtab.D14.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D14.ic
+sum.sigtab.D14.ic <- summary(sigtab.D14.ic)
+sum.sigtab.D14.ic
+
+#ggplot
 deseq.D14.ic <- ggplot(sigtab.D14.ic, aes(x=reorder(rownames(sigtab.D14.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D14.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to NON at Nasal Site on Day 14')+ coord_flip() +
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c("IM", "NON"), values = c('#56B4E9', '#999999'))
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D14.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 14')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
 deseq.D14.ic
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D14.ic'
+
+#Add OTU and comparisons columns
+sigtab.D14.ic
 sigtab.D14.ic$OTU <- rownames(sigtab.D14.ic)
-sigtab.D14.ic$comp <- 'D14_nasal_IMvsNON'
-    
-#Add all genera that were differentially abundant between IM and NON treatment groups from 'sigtab.D14.ic' to 'final.nonsigtab' 
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D14.ic)
-    
-######### Day 14 Nasal IM vs IF ###################
-    
-#Determine number of pigs per group from "Set" column in 'meta2' dataframe: 
-sum(meta2$Set == "14_NW_IM")
-#Output:
-#IF = 6
-sum(meta2$Set == "14_NW_IF")
-#Output:
-#IM = 7
-    
-#Extract results from 'FS1b.D14.nw.De' DESeq object and organize into 'sigtab.D14.if' table
-res.D14.if = results(FS1b.D14.nw.De, contrast=c("Set","14_NW_IM","14_NW_IF"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
-res.D14.if
-sigtab.D14.if = res.D14.if[which(res.D14.if$padj < .05), ]
-sigtab.D14.if = cbind(as(sigtab.D14.if, "data.frame"), as(tax_table(FS1b.D14.nw)[rownames(sigtab.D14.if), ], "matrix"))
-format(sigtab.D14.if$padj, scientific = TRUE)
-sigtab.D14.if$newp <- format(round(sigtab.D14.if$padj, digits = 3), scientific = TRUE)
-sigtab.D14.if$Treatment <- ifelse(sigtab.D14.if$log2FoldChange >=0, "IM", "IF")
-sigtab.D14.if
-    
-#Plot 'sigtab.D14.if'
-deseq.D14.if <- ggplot(sigtab.D14.if, aes(x=reorder(rownames(sigtab.D14.if), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
-      geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D14.if), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family Genus")+
-      theme(axis.text.x=element_text(color = 'black', size = 13),
-            axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in IM Relative to IF Group at Nasal Site on Day 14')+ coord_flip() + 
-      theme(plot.title = element_text(size = 20, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
-      scale_fill_manual(labels = c('IF', 'IM'), values = c('#E69F00', '#56B4E9'))
-deseq.D14.if
-    
-#Add OTU and treatment group comparisons columns to 'sigtab.D14.if'
-sigtab.D14.if$OTU <- rownames(sigtab.D14.if)
-sigtab.D14.if$comp <- 'D14_nasal_IMvsIF'
-    
-#Add all genera that were differentially abundant between IM and IF treatment groups from 'sigtab.D14.if' to 'final.nonsigtab'
-final.nonsigtab <- rbind(final.nonsigtab, sigtab.D14.if)
-    
-#Write 'final.nonsigtab' into csv file
-write.csv(final.nonsigtab, file= "Nasal_FinalDiffAbundGenus_NonSignificantDays.csv")
-    
-#######################################################################################################
-    
-######### Plots of Differentially Abundant Nasal Families and Genera Combined for Each Pairwise Comparison of Treatment Groups ########
-    
-#IF and NON Log2fold plot Part A
-final_fc <- sigtab.D0.fc
-final_fc <- rbind(final_fc, sigtab.D4.fc, sigtab.D7.fc, sigtab.D11.fc, sigtab.D14.fc)
-final_fc$Family_Genus <- paste(final_fc$Family, final_fc$Genus) #create new column with Family_Genus
-fc_plot <- ggplot(final_fc, aes(x=Family_Genus, log2FoldChange, fill = comp)) +
-      geom_bar(stat='identity') +
-      labs(x="Family Genus", y = "Total log2 Fold Change") +
-      theme(axis.text.x=element_text(color = 'black', size = 10),
-            axis.text.y=element_text(color = 'black', size=7), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ 
-      coord_flip() +
-      ggtitle('Differentially Abundant Nasal Wash Families and Genera between IF and NON Groups') + 
-      theme(plot.title = element_text(size = 20), legend.text = element_text(size=12), legend.title = element_text(size=13))
-fc_plot
-write.csv(final_fc, file= "FS1b_FinalDiffAbundNasalGenus_FC.csv")
-    
-#Modified FS1b_FinalDiffAbundNasalGenus_FC.csv in a spreadsheet editor by removing all genera except for Blautia, Lachnospiraceae_unclassified,Roseburia, Lactobacillus, Acinetobacter, Actinobacillus, and Streptococcus.
-#Saved modified file as FS1b_FinalDiffAbundNasalGenus_FC_final.csv
-    
-#IF and NON Log2fold plot Part B
-fc <- read.csv('FS1b_FinalDiffAbundNasalGenus_FC_final.csv', header = TRUE, sep = ",")
-head(fc[,1:10])
-colnames(fc)
-fc$DayComp <- sub('_[A-Za-z]+', '\\2', fc$comp)
-unique(fc$DayComp)
-fc$Day <- sub('_[A-Za-z]+', '\\2', fc$DayComp)
-unique(fc$Day) #D4"  "D7"  "D11"
-fc$Day = factor(fc$Day, levels=c("D4","D7", "D11"))
-levels(fc$Day) #"D4"  "D7"  "D11"
-(fc_logfoldplot <- ggplot(data=fc, aes(x=Day, y=log2FoldChange, fill=Treatment)) +
-        geom_bar(stat = 'identity', position="dodge") +
-        facet_wrap(~Genus, ncol = 2, scales = "free") + ylab('log2-fold change') +
-        theme_gray()+
-        theme(plot.title = element_text(hjust = 4)) +
-        theme(axis.line = element_line()) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1, size=13),
-              axis.text.y = element_text(size=13), 
-              axis.title.x = element_text(size=15), 
-              axis.title.y = element_text(size=15),
-              legend.text=element_text(size=15), 
-              legend.title=element_text(size=15)) +
-        scale_fill_manual(labels = c("NON", "IF"), values = c('#999999', '#E69F00')))
-fc_logfoldplot <- fc_logfoldplot + theme(strip.text = element_text(size= 15, face='italic'))
-fc_logfoldplot
-write.csv(final_fc, file= "FS1b_FinalDiffAbundNasalGenus_FC_final.csv")
-    
-#Modified FS1b_FinalDiffAbundNasalGenus_FC_final.csv by removing Roseburia genus and saving as 
-#FS1b_FinalDiffAbundNasalGenus_FCnoRoseburia_final.csv
-    
-#IF and NON Log2fold Plot Part C
-fc1 <- read.csv('FS1b_FinalDiffAbundNasalGenus_FCnoRoseburia_final.csv', header = TRUE, sep = ",")
-head(fc1[,1:10])
-colnames(fc1)
-fc1$DayComp <- sub('_[A-Za-z]+', '\\2', fc1$comp)
-unique(fc1$DayComp)
-fc1$Day <- sub('_[A-Za-z]+', '\\2', fc1$DayComp)
-unique(fc1$Day) #D4"  "D7"  "D11"
-fc1$Day = factor(fc1$Day, levels=c("D4","D7", "D11"))
-levels(fc1$Day) #"D4"  "D7"  "D11"
-(fc1_logfoldplot <- ggplot(data=fc1, aes(x=Day, y=log2FoldChange, fill=Treatment)) +
-        geom_bar(stat = 'identity', position="dodge") +
-        facet_wrap(~Genus, ncol = 2, scales = "free") + ylab('log2-fold change') +
-        theme_gray()+
-        theme(plot.title = element_text(hjust = 3)) +
-        theme(axis.line = element_line()) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1, size=13),
-              axis.text.y = element_text(size=13), 
-              axis.title.x = element_text(size=15), 
-              axis.title.y = element_text(size=15),
-              legend.text=element_text(size=15), 
-              legend.title=element_text(size=15)) +
-        scale_fill_manual(labels = c("NON", "IF"), values = c('#999999', '#E69F00')))
-fc1_logfoldplot <- fc1_logfoldplot + theme(strip.text = element_text(size= 13, face='italic'))
-fc1_logfoldplot
-    
-#IM and NON Log2fold Plot Part A
+sigtab.D14.ic
+sigtab.D14.ic$comp <- 'D14_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D14.ic)
+
+################################################## Day 21 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D21 <- subset_samples(SRD129.genus, Day == 'D21')
+sample_sums(SRD129.D21)
+colnames(otu_table(SRD129.D21))
+SRD129.D21 <- prune_taxa(taxa_sums(SRD129.D21) > 1, SRD129.D21)
+rowSums(SRD129.D21@otu_table)
+SRD129.D21.De <- phyloseq_to_deseq2(SRD129.D21, ~ Set)
+SRD129.D21.De <- DESeq(SRD129.D21.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D21_IAV")
+#IAV = 9
+sum(meta2$Set == "D21_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D21.De$Set
+res.D21.ic = results(SRD129.D21.De, contrast=c("Set","D21_IAV","D21_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D21.ic = res.D21.ic[which(res.D21.ic$padj < .05), ]
+sigtab.D21.ic = cbind(as(sigtab.D21.ic, "data.frame"), as(tax_table(SRD129.D21)[rownames(sigtab.D21.ic), ], "matrix"))
+format(sigtab.D21.ic$padj, scientific = TRUE)
+sigtab.D21.ic$newp <- format(round(sigtab.D21.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D21.ic$Treatment <- ifelse(sigtab.D21.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D21.ic
+sum.sigtab.D21.ic <- summary(sigtab.D21.ic)
+sum.sigtab.D21.ic
+
+#ggplot
+deseq.D21.ic <- ggplot(sigtab.D21.ic, aes(x=reorder(rownames(sigtab.D21.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D21.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 21')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D21.ic
+
+#Add OTU and comparisons columns
+sigtab.D21.ic
+sigtab.D21.ic$OTU <- rownames(sigtab.D21.ic)
+sigtab.D21.ic
+sigtab.D21.ic$comp <- 'D21_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D21.ic)
+
+################################################## Day 28 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D28 <- subset_samples(SRD129.genus, Day == 'D28')
+sample_sums(SRD129.D28)
+colnames(otu_table(SRD129.D28))
+SRD129.D28 <- prune_taxa(taxa_sums(SRD129.D28) > 1, SRD129.D28)
+rowSums(SRD129.D28@otu_table)
+SRD129.D28.De <- phyloseq_to_deseq2(SRD129.D28, ~ Set)
+SRD129.D28.De <- DESeq(SRD129.D28.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D28_IAV")
+#IAV = 5
+sum(meta2$Set == "D28_Control")
+#Control = 4
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D28.De$Set
+res.D28.ic = results(SRD129.D28.De, contrast=c("Set","D28_IAV","D28_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D28.ic = res.D28.ic[which(res.D28.ic$padj < .05), ]
+sigtab.D28.ic = cbind(as(sigtab.D28.ic, "data.frame"), as(tax_table(SRD129.D28)[rownames(sigtab.D28.ic), ], "matrix"))
+format(sigtab.D28.ic$padj, scientific = TRUE)
+sigtab.D28.ic$newp <- format(round(sigtab.D28.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D28.ic$Treatment <- ifelse(sigtab.D28.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D28.ic
+sum.sigtab.D28.ic <- summary(sigtab.D28.ic)
+sum.sigtab.D28.ic
+
+#ggplot
+deseq.D28.ic <- ggplot(sigtab.D28.ic, aes(x=reorder(rownames(sigtab.D28.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D28.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 28')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D28.ic
+
+#Add OTU and comparisons columns
+sigtab.D28.ic
+sigtab.D28.ic$OTU <- rownames(sigtab.D28.ic)
+sigtab.D28.ic
+sigtab.D28.ic$comp <- 'D28_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D28.ic)
+
+################################################## Day 36 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D36 <- subset_samples(SRD129.genus, Day == 'D36')
+sample_sums(SRD129.D36)
+colnames(otu_table(SRD129.D36))
+SRD129.D36 <- prune_taxa(taxa_sums(SRD129.D36) > 1, SRD129.D36)
+rowSums(SRD129.D36@otu_table)
+SRD129.D36.De <- phyloseq_to_deseq2(SRD129.D36, ~ Set)
+SRD129.D36.De <- DESeq(SRD129.D36.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D36_IAV")
+#IAV = 9
+sum(meta2$Set == "D36_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D36.De$Set
+res.D36.ic = results(SRD129.D36.De, contrast=c("Set","D36_IAV","D36_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D36.ic = res.D36.ic[which(res.D36.ic$padj < .05), ]
+sigtab.D36.ic = cbind(as(sigtab.D36.ic, "data.frame"), as(tax_table(SRD129.D36)[rownames(sigtab.D36.ic), ], "matrix"))
+format(sigtab.D36.ic$padj, scientific = TRUE)
+sigtab.D36.ic$newp <- format(round(sigtab.D36.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D36.ic$Treatment <- ifelse(sigtab.D36.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D36.ic
+sum.sigtab.D36.ic <- summary(sigtab.D36.ic)
+sum.sigtab.D36.ic
+
+#ggplot
+deseq.D36.ic <- ggplot(sigtab.D36.ic, aes(x=reorder(rownames(sigtab.D36.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D36.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 36')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D36.ic
+
+#Add OTU and comparisons columns
+sigtab.D36.ic
+sigtab.D36.ic$OTU <- rownames(sigtab.D36.ic)
+sigtab.D36.ic
+sigtab.D36.ic$comp <- 'D36_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D36.ic)
+
+################################################## Day 42 Nasal ############################################################
+
+sample_data(SRD129.genus)
+SRD129.D42 <- subset_samples(SRD129.genus, Day == 'D42')
+sample_sums(SRD129.D42)
+colnames(otu_table(SRD129.D42))
+SRD129.D42 <- prune_taxa(taxa_sums(SRD129.D42) > 1, SRD129.D42)
+rowSums(SRD129.D42@otu_table)
+SRD129.D42.De <- phyloseq_to_deseq2(SRD129.D42, ~ Set)
+SRD129.D42.De <- DESeq(SRD129.D42.De, test = "Wald", fitType = "parametric")
+
+meta2$Set
+#Number of pigs per group (using meta2 dataframe): 
+sum(meta2$Set == "D42_IAV")
+#IAV = 9
+sum(meta2$Set == "D42_Control")
+#Control = 10
+
+#Extract results from a DESeq analysis, organize table
+SRD129.D42.De$Set
+res.D42.ic = results(SRD129.D42.De, contrast=c("Set","D42_IAV","D42_Control"),cooksCutoff = FALSE, pAdjustMethod = 'BH')
+sigtab.D42.ic = res.D42.ic[which(res.D42.ic$padj < .05), ]
+sigtab.D42.ic = cbind(as(sigtab.D42.ic, "data.frame"), as(tax_table(SRD129.D42)[rownames(sigtab.D42.ic), ], "matrix"))
+format(sigtab.D42.ic$padj, scientific = TRUE)
+sigtab.D42.ic$newp <- format(round(sigtab.D42.ic$padj, digits = 3), scientific = TRUE)
+sigtab.D42.ic$Treatment <- ifelse(sigtab.D42.ic$log2FoldChange >=0, "IAV", "Control")
+
+#Summarize sigtab.D42.ic
+sum.sigtab.D42.ic <- summary(sigtab.D42.ic)
+sum.sigtab.D42.ic
+
+#ggplot
+deseq.D42.ic <- ggplot(sigtab.D42.ic, aes(x=reorder(rownames(sigtab.D42.ic), log2FoldChange), y=log2FoldChange, fill = Treatment)) +
+  geom_bar(stat='identity') + geom_text(aes(x=rownames(sigtab.D42.ic), y=0, label = paste(Family,Genus, sep = ' ')), size=5)+ labs(x="Family genus")+
+  theme(axis.text.x=element_text(color = 'black', size = 13),
+        axis.text.y=element_text(color = 'black', size=13, face = 'italic'), 
+        axis.title.x=element_text(size = 15),
+        axis.title.y=element_text(size = 15))+ ggtitle('Differentially Abundant OTUs in Influenza A Virus Group Relative to Control at Nasal Site on Day 42')+ coord_flip() +
+  theme(plot.title = element_text(size = 18, hjust=0.5), legend.text = element_text(size=12), legend.title = element_text(size=13)) +
+  scale_fill_manual(values = c(Control = "#999999", IAV = "#CC0066"))
+deseq.D42.ic
+
+#Add OTU and comparisons columns
+sigtab.D42.ic
+sigtab.D42.ic$OTU <- rownames(sigtab.D42.ic)
+sigtab.D42.ic
+sigtab.D42.ic$comp <- 'D42_IAVvsControl'
+
+#Create final significant comparisons table
+final.sigtab <- rbind(final.sigtab, sigtab.D42.ic)
+
+################################################## write csv ########################################
+write.csv(final.sigtab, file= "SRD129_FinalDiffAbundGenus.csv")
+
+
+######### Plots of Differentially Abundant Nasal Genera Combined for Each Pairwise Comparison of IAV and Control Groups########
+library("ggsci")
+
+#IAV and Control Log2fold Plot Part A
 final_ic <- sigtab.D0.ic
-final_ic <- rbind(final_ic, sigtab.D4.ic, sigtab.D7.ic, sigtab.D11.ic, sigtab.D14.ic)
+final_ic <- rbind(final_ic, sigtab.D1.ic, sigtab.D3.ic, sigtab.D7.ic, sigtab.D10.ic, 
+                  sigtab.D14.ic, sigtab.D21.ic, sigtab.D28.ic, sigtab.D36.ic, sigtab.D42.ic)
 final_ic$Family_Genus <- paste(final_ic$Family, final_ic$Genus) #create new column with Family_Genus
-ic_plot <- ggplot(final_ic,  aes(x=Family_Genus, log2FoldChange, fill = comp)) +
-      geom_bar(stat='identity') +
-      labs(x="Family Genus", y = "Total log2 Fold Change") +
-      theme(axis.text.x=element_text(color = 'black', size = 10),
-            axis.text.y=element_text(color = 'black', size=7), 
-            axis.title.x=element_text(size = 15),
-            axis.title.y=element_text(size = 15))+ 
-      coord_flip() +
-      ggtitle('Differentially Abundant Nasal Wash Families and Genera between IM and NON Groups') + 
-      theme(plot.title = element_text(size = 20), legend.text = element_text(size=12), legend.title = element_text(size=13))
+final_ic$comp
+class(final_ic)
+final_ic$comp <- factor(final_ic$comp, levels=c("D0_IAVvsControl",
+                                                "D1_IAVvsControl", "D3_IAVvsControl", "D7_IAVvsControl",
+                                                "D10_IAVvsControl", "D14_IAVvsControl", "D21_IAVvsControl",
+                                                "D28_IAVvsControl", "D36_IAVvsControl", "D42_IAVvsControl"))
+levels(final_ic$comp)
+ic_plot <- ggplot(final_ic, aes(x=Family_Genus, log2FoldChange, fill = comp)) +
+  geom_bar(stat='identity') +
+  labs(x="Family Genus", y = "Total log2 Fold Change") +
+  theme(axis.text.x=element_text(color = 'black', size = 18),
+        axis.text.y=element_text(color = 'black', size=15), 
+        axis.title.x=element_text(size = 20),
+        axis.title.y=element_text(size = 20))+ 
+  coord_flip() +
+  scale_fill_igv(name = "comp") +
+  ggtitle('Differentially Abundant Nasal Families and Genera between Influenza A Virus and Control Groups') + 
+  theme(plot.title = element_text(size = 20), legend.text = element_text(size=20), legend.title = element_text(size=20))
+ic_plot <- ic_plot + guides(fill=guide_legend(title="Day and treatment group"))
 ic_plot
-write.csv(final_ic, file= "FS1b_FinalDiffAbundNasalGenus_IC.csv")
-    
-#Modified FS1b_FinalDiffAbundNasalGenus_IC.csv in a spreadsheet editor by removing all genera except for Actinobacillus and Streptococcus.
-#Saved modified file as FS1b_FinalDiffAbundNasalGenus_IC_final.csv
-    
-#IM and NON Log2fold Plot Part B
-ic <- read.csv('FS1b_FinalDiffAbundNasalGenus_IC_final.csv', header = TRUE, sep = ",")
+
+write.csv(final_ic, file= "SRD129_FinalDiffAbundNasalGenus_IAVcontrol.csv")
+
+#Modified SRD129_FinalDiffAbundNasalGenus_IAVcontrol.csv in a spreadsheet editor by removing all genera except for Actinobacillus, Moraxella, Neisseriaceae_unclassified, Prevotellaceae_NK3B31_group,
+#Prevotellaceae_unclassified, Staphylococcus, Streptococcus.
+#Saved modified file as SRD129_FinalDiffAbundNasalGenus_IAVcontrolSelectList.csv
+
+#IAV and control Log2fold Plot Part B
+ic <- read.csv('SRD129_FinalDiffAbundNasalGenus_IAVcontrolSelectList.csv', header = TRUE, sep = ",")
 head(ic[,1:10])
 colnames(ic)
 ic$DayComp <- sub('_[A-Za-z]+', '\\2', ic$comp)
 unique(ic$DayComp)
 ic$Day <- sub('_[A-Za-z]+', '\\2', ic$DayComp)
-unique(ic$Day) #"D0"  "D4"  "D7"  "D11" "D14"
-ic$Day = factor(ic$Day, levels=c("D0", "D4","D7", "D11", "D14"))
-levels(ic$Day) #"D0"  "D4"  "D7"  "D11" "D14"
+unique(ic$Day) #"D3"  "D7"  "D10" "D14" "D21" "D28"
+ic$Day = factor(ic$Day, levels=c("D3","D7", "D10","D14", "D21", "D28"))
+levels(ic$Day) #"D3"  "D7"  "D10" "D14" "D21" "D28"
 (ic_logfoldplot <- ggplot(data=ic, aes(x=Day, y=log2FoldChange, fill=Treatment)) +
-        geom_bar(stat = 'identity', position="dodge") +
-        facet_wrap(~Genus, scales = "free") + ylab('log2-fold change') +
-        theme_gray()+
-        theme(plot.title = element_text(hjust = 2)) +
-        theme(axis.line = element_line()) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1, size=13),
-              axis.text.y = element_text(size=13), 
-              axis.title.x = element_text(size=15), 
-              axis.title.y = element_text(size=15),
-              legend.text=element_text(size=15), 
-              legend.title=element_text(size=15)) +
-        scale_fill_manual(labels = c("NON", "IM"), values = c('#999999', '#56B4E9')))
-ic_logfoldplot <- ic_logfoldplot + theme(strip.text = element_text(size= 15, face='italic'))
+    geom_bar(stat = 'identity', position="dodge") +
+    facet_wrap(~Genus, ncol = 3, scales = "free") + ylab('log2-fold change') +
+    theme_gray()+
+    theme(plot.title = element_text(hjust = 3)) +
+    theme(axis.line = element_line()) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size=13),
+          axis.text.y = element_text(size=13), 
+          axis.title.x = element_text(size=15), 
+          axis.title.y = element_text(size=15),
+          legend.text=element_text(size=15), 
+          legend.title=element_text(size=15)) +
+    scale_fill_manual(values = c(Control = "#F8766D", IAV = "#00BFC4")))
+ic_logfoldplot <- ic_logfoldplot + theme(strip.text = element_text(size= 13, face='italic'))
 ic_logfoldplot
-    
-#Combine plots 'fc1_logfoldplot' and 'ic_logfoldplot'
-ggtwo=plot_grid(fc1_logfoldplot, ic_logfoldplot, labels = c("A", "B"))
-ggtwo
-    
-#Save 'ggtwo' as a .tiff for publication, 500dpi
-ggsave("NasalDESeq.tiff", plot=ggtwo, width = 15, height = 5, dpi = 500, units =c("in"))
+
+#Save 'ic_logfoldplot' as a .tiff for publication, 500dpi
+ggsave("Figure_5.tiff", plot=ic_logfoldplot, width = 15, height = 7, dpi = 500, units =c("in"))
 
 #################################################################################################################################################################################################
 
