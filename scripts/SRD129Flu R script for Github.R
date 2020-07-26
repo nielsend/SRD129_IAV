@@ -1310,9 +1310,10 @@ ggsave("Figure_5.tiff", plot=ic_logfoldplot, width = 15, height = 7, dpi = 500, 
 #Purpose: This code generates a list of percent total genera found in each treatment group per day for each tissue and creates a bar graph plot of the data 
     
 #Files needed:
-#FS1bfinal.outsingletons.abund.opti_mcc.0.03.subsample.shared
-#FS1bfinal.outsingletons.abund.opti_mcc.0.03.cons.taxonomy
-#FS1babundsingleton2000metadata.csv
+#SRD129Flu.outsingletons.abund.opti_mcc.shared
+#SRD129Flu.outsingletons.abund.opti_mcc.0.03.cons.taxonomy
+#SRD129Flu.outsingletons.abund.opti_mcc.0.03.subsample.shared
+#SRD129metadata.csv
 
 #Load libraries
 library(phyloseq)
