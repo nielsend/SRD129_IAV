@@ -24,16 +24,8 @@ source("https://raw.githubusercontent.com/joey711/phyloseq/master/inst/scripts/i
 #Import files
 otu <- import_mothur(mothur_shared_file = './data/SRD129Flu.outsingletons.abund.opti_mcc.shared')
 taxo <- import_mothur(mothur_constaxonomy_file = './data/SRD129Flu.outsingletons.abund.opti_mcc.0.03.cons.taxonomy')
-shared <- read.table('./data/SRD129Flu.outsingletons.abund.opti_mcc.0.03.subsample.shared', header = TRUE)
 meta <- read.table('./data/SRD129metadata.csv', header = TRUE, sep = ",")
 head(meta)
-
-
-
-###########
-#How to make fobar2.gather file?
-#Check out phyloseq R scripts
-
 colnames(meta)[1] <- 'group' 
 #Rename first column of "meta" as "group" temporarily. Will use "group" to set as rownames later and remove the "group" column
 meta$Day<- gsub("D", "", meta$Day) #Remove "D"
@@ -66,8 +58,8 @@ fobar.gather <- fobar %>% gather(Genus, value, -(group:Treatment))  #This conver
 #This also created new columns "Genus", "value"; it added columns "group" through "Treatment" before "Genus" and "value"
 head(fobar.gather)
 
-#Check to see if there is an extra "group" column. If so, run the next set of commands (up to "head(fobar2)") and remove appropriate column
-which(colnames(phyla_tab2)=="group") #Results say column 237 is "group" column
+#Check to see where the extra "group" column is and remove the column
+which(colnames(phyla_tab2)=="group") #Results say column 405 is "group" column
 phyla_tab3 <- phyla_tab2[,-405] #Drop the 405th column
 phyla_tab4 <- phyla_tab3[,colSums(phyla_tab3)>0.1] #Keep the columns that have greater than 0.1 value
 phyla_tab4$group <- rownames(phyla_tab4) #Rename rownames as "group"
@@ -76,43 +68,30 @@ head(fobar2)
 fobar2.gather <- fobar2 %>% gather(Genus, value, -(group:Treatment)) 
 head(fobar2.gather)
 
-#CONTINUE HERE
-#Reorder days 0-14 in 'fobar2.gather' plot
-levels(sample_data(fobar2.gather)$Day)
-fobar2.gather$Day <- factor(fobar2.gather$Day, levels=c("D0", "D4", "D7", "D11", "D14"))
-head(fobar2.gather$Day)
-
-#Create "All" column with "Day", "Treatment" and "Tissue" in 'fobar2.gather'
-fobar2.gather$All <- paste(fobar2.gather$Day, fobar2.gather$Treatment, fobar2.gather$Tissue, sep = '_')
+#Create "All" column with "Day" and "Treatment" in 'fobar2.gather'
+fobar2.gather$All <- paste(fobar2.gather$Day, fobar2.gather$Treatment, sep = '_')
 
 #Count the number of unique items in 'fobar2.gather'. We're interested in the total unique number of genera
-fobar2.gather %>% summarise_each(funs(n_distinct)) #90 total unique genera
-fobar2.gather <- fobar2.gather %>% group_by(All) %>% mutate(value2=(value/(length(All)/90))*100) #90 refers to number of Genera
+fobar2.gather %>% summarise_each(funs(n_distinct)) #86 total unique genera
+fobar2.gather <- fobar2.gather %>% group_by(All) %>% mutate(value2=(value/(length(All)/86))*100) #86 refers to number of Genera
 
 #Subset each "All" group from fobar2.gather and save as individual csv files.
 #Two examples:
-D0_Control_NW.genus <- subset(fobar2.gather, All=="D0_Control_NW")
-write.csv(D0_Control_NW.genus, file="D0_Control_NW.genus.csv")
+D0_Control.genus <- subset(fobar2.gather, All=="0_Control")
+write.csv(D0_Control.genus, file="D0_Control.genus.csv")
 
-D4_Infeed_TT.genus <- subset(fobar2.gather, All=="D4_Infeed_TT.genus")
-write.csv(D4_Infeed_TT.genus, file="D4_Infeed_TT.genus")
-
-#############
-
-#Subset each "All" group from fobar2.gather and save as individual csv files.
-#For example:
-D0_Control_NW.genus <- subset(fobar2.gather, All=="D0_Control_NW") #EDIT THIS
-write.csv(D0_Control_NW.genus, file="D0_Control_NW.genus.csv")  #EDIT THIS
+D1_IAV.genus <- subset(fobar2.gather, All=="D1_IAV.genus")
+write.csv(D1_IAV.genus, file="D4_IAV.genus")
 
 #Calculate the total % percent abundance of each genera on each sample (I used JMP to do this) 
-#and save results in a spreadsheet editor such as Excel (see D0_Control_NW.genus.xlsx for an example)
+#and save results in a spreadsheet editor such as Excel (see D0_Control.genus.xlsx for an example)
 #Since we are only interested in genera that are above 2% abundance, 
 #calculate total percentage of all other genera that are less than 2% in the spreadsheet and label as "Other".
-#Create a new spreadsheet and label as "Nasal genus.csv" or "Tonsil genus.csv". 
-#Create the following columns: Day, Treatment group, Tissue, Percent Abundance, and Genus. 
-#Copy the list of genera and their percent abundances from each of the individual Excel files to the respective "Nasal genus.csv" or "Tonsil genus.csv" spreadsheet.
-#Fill in the other columns manually (Day, Treatment Group, Tissue). 
-#You should have a file similar to SRD129_Nasal_GenusPercentAbundance.csv. Continue to the next step.
+#Create a new spreadsheet and label as "Nasal genus.csv". 
+#Create the following columns: Day, Treatment group, Percent Abundance, and Genus. 
+#Copy the list of genera and their percent abundances from each of the individual Excel files to the respective "Nasal genus.csv" spreadsheet.
+#Fill in the other columns manually (Day, Treatment Group). 
+#Save this as SRD129_Nasal_GenusPercentAbundance.csv. Continue to the next step.
 nasalgen <- read.table('SRD129_Nasal_GenusPercentAbundance.csv', header = TRUE, sep = ",")
 head(nasalgen)
 unique(nasalgen.2$Day) #D0  D1  D3  D7  D10 D14 D21 D28 D36 D42
@@ -120,18 +99,18 @@ nasalgen.2$Day = factor(nasalgen.2$Day, levels = c("D0", "D1", "D3", "D7", "D10"
 nasalgen.2$More.than.2=as.character(nasalgen.2$Genus)
 str(nasalgen.2$More.than.2) #Compactly display the internal structure of an R object,
 nasalgen.2$More.than.2[nasalgen.2$Percent.abundance<1]<-"Other"
-write.csv(nasalgen.2, file = "SRD129_Nasal_FluControlNoDNEGGenusPercentAbundanceAbove1percent.csv")
+write.csv(nasalgen.2, file = "SRD129_Nasal_GenusPercentAbundanceAbove1percent.csv")
 
 #To make sure the total percent abundance of all organisms for each day adds up to 100%, 
-#modify the percent abundance for "Other" for each day in "SRD129_Nasal_FluControlNoDNEGGenusPercentAbundanceAbove1percent.csv" in a spreadsheet editor 
-#and save as "SRD129_Nasal_FluControlGenusPercentAbundanceAbove1PercentAddTo100FINAL.csv"
+#modify the percent abundance for "Other" for each day in "SRD129_Nasal_GenusPercentAbundanceAbove1percent.csv" in a spreadsheet editor 
+#and save as "SRD129_Nasal_GenusPercentAbundanceAbove1PercentAddTo100FINAL.csv"
 
 #Create nasal genera plot
-nasalgen.2 = read.csv("SRD129_Nasal_FluControlGenusPercentAbundanceAbove1PercentAddTo100FINAL.csv", header = TRUE)
+nasalgen.2 = read.csv("SRD129_Nasal_GenusPercentAbundanceAbove1PercentAddTo100FINAL.csv", header = TRUE)
 levels(nasalgen.2$Day)  # "D0"  "D1"  "D10" "D14" "D21" "D28" "D3"  "D36" "D42" "D7" 
 nasalgen.2$Day = factor(nasalgen.2$Day, levels = c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D28", "D36", "D42"))
 
-#Nasalgen.2 abundance plot for each day, flu and control only, no DNEG12/6, more than 1% genera
+#Nasalgen.2 abundance plot for each day, more than 1% genera
 (nasalgen.2plot <- ggplot(data=nasalgen.2, aes(x=Treatment, y=Percent.abundance, fill=Genus)) +
     geom_bar(stat = 'identity') +
     #geom_bar(stat= 'identity', colour='black') +
