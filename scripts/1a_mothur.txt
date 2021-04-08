@@ -1,16 +1,18 @@
-#FIRST SECTION: Processing 16S amplicon sequences using mothur
-    
+############################################################
+#SRD129 16S - Mothur
+#By Mou, KT
+
 #Purpose: To use mothur to process paired-end 16S rRNA gene sequences from the research paper "Changes in the swine nasal microbiota following influenza A virus challenge in a longitudinal study".
 
 #Files needed:
 #*.fastq files from Bioproject PRJNA525911
 
-#Open mothur, then input the following commands (output files are listed directly below each command):
+#Open mothur in same directory as fastq files, then input the following commands (output files are listed directly below each command):
 
 #Create directory of fastq files and file names
 make.file(inputdir=<directory path>, type=fastq, prefix=SRD129Flu)
 #prefix can be whatever name you want to call the files. We called it SRD129Flu
-#Output: 
+#Output:
 #SRD129Flu.files
 
 #Check SRD129Flu.files to make sure the text file has the correct three columns (sample name, R1*.fastq, R2*.fastq). If the three columns are not labeled correctly, edit as appropriate using command-line tools, text editor, etc.
@@ -47,19 +49,19 @@ unique.seqs(fasta=current)
 
 #Generate table with names of unique sequences and names of the groups
 count.seqs(name=current, group=current)
-#Output: 
+#Output:
 #SRD129Flu.trim.contigs.good.count_table
 
 #Summarize SRD129Flu.trim.contigs.good.count_table, SRD129Flu.trim.contigs.good.unique.fasta
 summary.seqs(count=current, fasta=current, processors=39)
-#Output: 
+#Output:
 #SRD129Flu.trim.contigs.good.unique.summary
 
 #Download or import silva full length sequences and taxonomy references from https://mothur.org/wiki/Silva_reference_files
 #Unzip tar.gz file and use the silva*.align file for pcr.seqs command
 #I used silva version 132, which was the latest version at the time.
 pcr.seqs(fasta=silva.seed_v132.align, start=11894, end=25319, keepdots=F)
-#Output: 
+#Output:
 #silva.nr_v132.pcr.align
 #silva.nr_v132.bad.accnos
 
@@ -81,14 +83,14 @@ summary.seqs(fasta=current, count=SRD129Flu.trim.contigs.good.count_table)
 
 #Keep sequences that start at or before position 1968 and end at or after position 11550
 screen.seqs(fasta=SRD129Flu.trim.contigs.good.unique.align, count=SRD129Flu.trim.contigs.good.count_table, start=1968, end=11550, maxhomop=6)
-#Output: 
+#Output:
 #SRD129Flu.trim.contigs.good.unique.bad.accnos
 #SRD129Flu.trim.contigs.good.unique.good.align
 #SRD129Flu.trim.contigs.good.good.count_table
 #SRD129Flu.trim.contigs.good.pick.count_table
 
 summary.seqs(fasta=current, count=current)
-#Output: 
+#Output:
 #SRD129Flu.trim.contigs.good.unique.good.summary
 
 #Filter out sequences with overhangs at both ends of the region
@@ -118,7 +120,7 @@ chimera.vsearch(fasta=current, count=current, dereplicate=t)
 
 #Remove chimeric sequences from fasta file
 remove.seqs(fasta=current, accnos=current)
-#Output: 
+#Output:
 #SRD129Flu.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta
 
 summary.seqs(fasta=current, count=current)
@@ -143,7 +145,7 @@ summary.tax(taxonomy=current, count=current)
 #SRD129Flu.trim.contigs.good.unique.good.filter.unique.precluster.pick.nr_v132.wang.pick.tax.summary
 
 #Rename the following files to a simpler name
-mv SRD129Flu.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta SRD129Flu.outsingletons.fasta 
+mv SRD129Flu.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta SRD129Flu.outsingletons.fasta
 mv SRD129Flu.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table SRD129Flu.outsingletons.count_table
 
 #Take out all the sequences that occur once
@@ -181,7 +183,7 @@ classify.otu(list=SRD129Flu.outsingletons.abund.opti_mcc.list, count=SRD129Flu.o
 
 #Files of importance
 #count=SRD129Flu.outsingletons.abund.count_table
-#shared=SRD129Flu.outsingletons.abund.opti_mcc.shared 
+#shared=SRD129Flu.outsingletons.abund.opti_mcc.shared
 #constaxonomy=SRD129Flu.outsingletons.abund.opti_mcc.0.03.cons.taxonomy
 
 #Determine number of sequences in each sample
