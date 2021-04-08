@@ -6,7 +6,7 @@ R version 3.6.3 (2020-02-29) and accompanying packages were used to run the scri
 
 Fastq files are located in Bioproject PRJNA525911.
 
-See [SRD129_Flu_Rscripts.Rmd](https://github.com/k39ajdM2/SRD129_IAV/tree/master/scripts/SRD129Flu R scripts.Rmd) for collation of R scripts used for SRD129_IAV swine nasal microbiota analysis.
+See [SRD129_Flu_Rscripts.Rmd](https://github.com/k39ajdM2/SRD129_IAV/tree/master/scripts/SRD129_Flu_Rscripts.Rmd) for collation of R scripts used for SRD129_IAV swine nasal microbiota analysis.
 
 ### Nomenclature
 IAV = influenza A virus aka Flu group
