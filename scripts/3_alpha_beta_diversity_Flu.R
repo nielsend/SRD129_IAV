@@ -187,7 +187,7 @@ FluNMDSplot <- ggplot(data=flu.NMDS.2, aes(x=MDS1, y=MDS2, color=Treatment)) + g
 FluNMDSplot
 
 #Save 'FluNMDSplot' as a .tiff for publication, 500dpi
-ggsave("Supplementary_Figure_1.tiff", plot=FluNMDSplot, width = 10, height = 6, dpi = 500, units =c("in"))
+ggsave("Supplemental_Figure_1.tiff", plot=FluNMDSplot, width = 10, height = 6, dpi = 500, units =c("in"))
 
 #Using pairwise.adonis function
 flu.adon <- pairwise.adonis(flu.otu, flu.sam$All, sim.method = 'bray', p.adjust.m = 'bonferroni')
