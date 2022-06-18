@@ -22,6 +22,8 @@ library(cowplot)
 #Annotation
 #IC = IAV, control
 
+#R version 4.0.2 (2020-06-22)
+
 #######################################################################
 
 #Preparing objects for DESeq2: load files
@@ -581,40 +583,13 @@ write.csv(final.sigtab, file= "SRD129_FinalDiffAbundGenus.csv")
 ######### Plots of Differentially Abundant Nasal Genera Combined for Each Pairwise Comparison of IAV and Control Groups########
 library("ggsci")
 
-#IAV and Control Log2fold Plot Part A
-final_ic <- sigtab.D0.ic
-final_ic <- rbind(final_ic, sigtab.D1.ic, sigtab.D3.ic, sigtab.D7.ic, sigtab.D10.ic,
-                  sigtab.D14.ic, sigtab.D21.ic, sigtab.D28.ic, sigtab.D36.ic, sigtab.D42.ic)
-final_ic$Family_Genus <- paste(final_ic$Family, final_ic$Genus) #create new column with Family_Genus
-final_ic$comp
-class(final_ic)
-final_ic$comp <- factor(final_ic$comp, levels=c("D0_IAVvsControl",
-                                                "D1_IAVvsControl", "D3_IAVvsControl", "D7_IAVvsControl",
-                                                "D10_IAVvsControl", "D14_IAVvsControl", "D21_IAVvsControl",
-                                                "D28_IAVvsControl", "D36_IAVvsControl", "D42_IAVvsControl"))
-levels(final_ic$comp)
-ic_plot <- ggplot(final_ic, aes(x=Family_Genus, log2FoldChange, fill = comp)) +
-  geom_bar(stat='identity') +
-  labs(x="Family Genus", y = "Total log2 Fold Change") +
-  theme(axis.text.x=element_text(color = 'black', size = 18),
-        axis.text.y=element_text(color = 'black', size=15),
-        axis.title.x=element_text(size = 20),
-        axis.title.y=element_text(size = 20))+
-  coord_flip() +
-  scale_fill_igv(name = "comp") +
-  ggtitle('Differentially Abundant Nasal Families and Genera between Influenza A Virus and Control Groups') +
-  theme(plot.title = element_text(size = 20), legend.text = element_text(size=20), legend.title = element_text(size=20))
-ic_plot <- ic_plot + guides(fill=guide_legend(title="Day and treatment group"))
-ic_plot
+#IAV and Control Log2fold Plot
 
-write.csv(final_ic, file= "SRD129_FinalDiffAbundNasalGenus_IAVcontrol.csv")
+#Modified SRD129_FinalDiffAbundGenus.csv in a spreadsheet editor by removing all genera that showed difference on the negative days
+#and day 0.
+#Saved modified file as SRD129_FinalDiffAbundNasalGenus_IAVcontrol_NoDNEG_46Genera-Day0Genera.csv
+ic <- read.csv('./data/SRD129_FinalDiffAbundNasalGenus_IAVcontrol_NoDNEG_46Genera-Day0Genera.csv', header = TRUE, sep = ",")
 
-#Modified SRD129_FinalDiffAbundNasalGenus_IAVcontrol.csv in a spreadsheet editor by removing all genera except for Actinobacillus, Moraxella, Neisseriaceae_unclassified, Prevotellaceae_NK3B31_group,
-#Prevotellaceae_unclassified, Staphylococcus, Streptococcus.
-#Saved modified file as SRD129_FinalDiffAbundNasalGenus_IAVcontrolSelectList.csv
-
-#IAV and control Log2fold Plot Part B
-ic <- read.csv('SRD129_FinalDiffAbundNasalGenus_IAVcontrolSelectList.csv', header = TRUE, sep = ",")
 head(ic[,1:10])
 colnames(ic)
 ic$DayComp <- sub('_[A-Za-z]+', '\\2', ic$comp)
@@ -625,7 +600,7 @@ ic$Day = factor(ic$Day, levels=c("D3","D7", "D10","D14", "D21", "D28"))
 levels(ic$Day) #"D3"  "D7"  "D10" "D14" "D21" "D28"
 (ic_logfoldplot <- ggplot(data=ic, aes(x=Day, y=log2FoldChange, fill=Treatment)) +
     geom_bar(stat = 'identity', position="dodge") +
-    facet_wrap(~Genus, ncol = 3, scales = "free") + ylab('log2-fold change') +
+    facet_wrap(~Genus, ncol = 5, scales = "free") + ylab('log2-fold change') +
     theme_gray()+
     theme(plot.title = element_text(hjust = 3)) +
     theme(axis.line = element_line()) +
@@ -636,8 +611,8 @@ levels(ic$Day) #"D3"  "D7"  "D10" "D14" "D21" "D28"
           legend.text=element_text(size=15),
           legend.title=element_text(size=15)) +
     scale_fill_manual(values = c(Control = "#F8766D", IAV = "#00BFC4")))
-ic_logfoldplot <- ic_logfoldplot + theme(strip.text = element_text(size= 13, face='italic'))
+ic_logfoldplot <- ic_logfoldplot + theme(strip.text = element_text(size= 15, face='italic'))
 ic_logfoldplot
 
 #Save 'ic_logfoldplot' as a .tiff for publication, 500dpi
-ggsave("Figure_5.tiff", plot=ic_logfoldplot, width = 15, height = 7, dpi = 500, units =c("in"))
+ggsave("Supplemental_Figure_2.tiff", plot=ic_logfoldplot, width = 20, height = 15, dpi = 500, units =c("in"))
