@@ -20,6 +20,8 @@ library(philentropy)
 library(cowplot)
 library('wesanderson')
 
+#R version 4.2.0 (2022-04-22)
+
 #Load this function from the funfuns R package (https://github.com/Jtrachsel/funfuns)
 NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
                          distance_method = 'bray',
@@ -148,7 +150,7 @@ head(flu.sam)
 flu.otu[1:10,1:10]
 flu.NMDS <- NMDS_ellipse(flu.sam, flu.otu, grouping_set = 'All')
 #Output:
-#Result: [1] "Ordination stress: 0.168876156130503"
+#Result: [1] "Ordination stress: 0.168872099651032"
 
 #Separate meta data and ellipse data to two lists to make NMDS plot
 flu.NMDS.2 <- flu.NMDS[[1]]
@@ -156,7 +158,7 @@ flu.NMDS.2 <- flu.NMDS[[1]]
 flu.df_ell.2 <- flu.NMDS[[2]]
 #'flu.df_ell.2' is accessing 2nd list from 'flu.NMDS' that has ellipse calculations
 #Need two separate lists for making NMDS plot
-flu.df_ell.2$group #20 levels
+flu.df_ell.2$group #1000 levels
 head(flu.df_ell.2)
 
 #Create "Day" and "Treatment" columns within 'nw.df_ell' for faceting purposes
@@ -177,15 +179,19 @@ FluNMDSplot <- ggplot(data=flu.NMDS.2, aes(x=MDS1, y=MDS2, color=Treatment)) + g
   facet_wrap(~Day, scales = 'free') +
   #scale_color_brewer(palette="Dark2") +
   theme_gray(base_size = 10) +
-  theme(strip.text.x = element_text(size=15)) +
-  labs(caption = 'Ordination stress = 0.169', color="Treatment group")
+  theme(strip.text.x = element_text(size=15),
+        legend.text=element_text(size=15),
+        legend.title = element_text(size=15)) +
+  labs(caption = 'Ordination stress = 0.169', color="Treatment group") +
+  theme(plot.caption= element_text(size=13,vjust = 5))
 FluNMDSplot
 
 #Save 'FluNMDSplot' as a .tiff for publication, 500dpi
-ggsave("Figure_1.tiff", plot=FluNMDSplot, width = 10, height = 6, dpi = 500, units =c("in"))
+ggsave("Supplementary_Figure_1.tiff", plot=FluNMDSplot, width = 10, height = 6, dpi = 500, units =c("in"))
 
 #Using pairwise.adonis function
 flu.adon <- pairwise.adonis(flu.otu, flu.sam$All, sim.method = 'bray', p.adjust.m = 'bonferroni')
+#output: 'adonis' will be deprecated: use 'adonis2' instead
 #Run pairwise.adonis on 'flu.otu' OTU table and "All" column of 'flu.sam' dataframe
 flu.adon$pairs #List all comparisons in the "pairs" column of 'flu.adon'
 goodcomps.flu.adon <- c(grep('D0 [A-Za-z]+ vs D0 [A-Za-z]+', flu.adon$pairs),
@@ -277,8 +283,11 @@ flu.shannon <- ggplot(data = flu.sam, aes(x=Treatment, y=shannon, group=All, fil
   scale_y_continuous(name = "Shannon diversity") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
-        strip.text.x = element_text(size=10),
-        axis.title.y = element_text(size=15))
+        axis.text.y = element_text(size=12),
+        strip.text.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
 # "free" within "facet_wrap" allows each plot to customize the scale to the specific data set (no forced scaling applied to all plots)
 # "position = position_dodge2(preserve = 'total')" fixes the ggplot box width, making them wider, prevents narrow boxes from forming in the plot
 flu.shannon
@@ -290,8 +299,13 @@ flu.invsimp <- ggplot(data = flu.sam, aes(x=Treatment, y=invsimpson, group=All, 
   scale_y_continuous(name = "Inverse Simpson diversity") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
-        strip.text.x = element_text(size=10),
-        axis.title.y = element_text(size=15))
+        axis.text.y = element_text(size=12),
+        strip.text.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        legend.title = element_text(size=15),
+        legend.text = element_text(size=15),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
 flu.invsimp
 
 #Combining plots
@@ -299,4 +313,4 @@ flu.combalpha <- plot_grid(flu.shannon + theme(legend.position = "none"), flu.in
 flu.combalpha
 
 #Save 'flu.combalpha' as a .tiff for publication, 500dpi
-ggsave("Figure_4.tiff", plot=flu.combalpha, width = 10, height = 5, dpi = 500, units =c("in"))
+ggsave("Figure_1.tiff", plot=flu.combalpha, width = 14, height = 8, dpi = 500, units =c("in"))
