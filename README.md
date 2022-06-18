@@ -2,11 +2,10 @@
 
 This is the repository for scripts and data files pertaining to the research paper "Changes in the swine nasal microbiota following influenza A virus challenge in a longitudinal study".
 
-R version 3.6.3 (2020-02-29) and accompanying packages were used to run the scripts.
+R version 4.0.2 (2020-06-22) and accompanying packages were used to run the scripts.
+Previous R version: 3.6.3 (2020-02-29)
 
 Fastq files are located in Bioproject PRJNA525911.
-
-See [SRD129_Flu_Rscripts.Rmd](https://github.com/k39ajdM2/SRD129_IAV/tree/master/scripts/SRD129_Flu_Rscripts.Rmd) for collation of R scripts used for SRD129_IAV swine nasal microbiota analysis.
 
 ### Nomenclature
 IAV = influenza A virus aka Flu group
