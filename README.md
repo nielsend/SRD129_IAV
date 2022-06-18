@@ -2,7 +2,7 @@
 
 This is the repository for scripts and data files pertaining to the research paper "Changes in the swine nasal microbiota following influenza A virus challenge in a longitudinal study".
 
-R version 4.0.2 (2020-06-22) or R version 4.2.0 (2022-04-22) and accompanying packages were used to run the scripts.
+R version 4.0.2 (2020-06-22) or R version 4.2.0 (2022-04-22) and accompanying packages were used to run the scripts.<br\ >
 Previous R version: 3.6.3 (2020-02-29)
 
 Fastq files are located in Bioproject PRJNA525911.
