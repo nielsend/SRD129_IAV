@@ -19,11 +19,14 @@ library(philentropy)
 library(cowplot)
 library(ggrepel)
 
+#R version 4.0.2 (2020-06-22)
+
 #######################################################################
 
 #The F-values were obtained from 'Flu.pairwisecomparisons.csv' data generated in the "Beta diversity" section
 #Flu_MagnitudeOfChange.csv was created from Flu.pairwisecomparisons.csv
-#To make the Flu_MagnitudeOfChange.csv file, open Flu.pairwisecomparisons.csv file in excel, copy columns "F. Model" through "p.adjusted2" and paste in a separate spreadsheet. Add "Day" and "Treatment" columns and save as "Flu_MagnitudeOfChange.csv".
+#To make the Flu_MagnitudeOfChange.csv file, open Flu.pairwisecomparisons.csv file in excel, 
+#copy columns "F. Model" through "p.adjusted2" and paste in a separate spreadsheet. Add "Day" and "Treatment" columns and save as "Flu_MagnitudeOfChange.csv".
 
 flu.mag <- read.csv("./data/Flu_MagnitudeOfChange.csv")
 class(flu.mag)
