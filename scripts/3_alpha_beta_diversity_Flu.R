@@ -245,6 +245,18 @@ flu.sam$invsimpson <- diversity(otu.meta4,index = 'invsimpson') #We used 'invsim
 flu.sam$Day = factor(flu.sam$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D28", "D36", "D42")) # Set the level order of values in "Day" column
 levels(sample_data(flu.sam)$Day) #Set the level order of values in "Day" column to D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21" "D28" "D36" "D42"
 
+#To calculate species richness:
+##Vegan package: Species richness (S) and Pielou's evenness (J)
+data(BCI)
+H <- diversity(BCI)
+S <- specnumber(BCI) ## rowSums(BCI > 0) does the same...
+J <- H/log(S)
+
+##For this project, the code would be something like this:
+H <- diversity(otu.meta4)
+S <- specnumber(otu.meta4)
+J <- H/log(S)
+
 #Calculate the average shannon, invsimpson, numOTUs for each "All" subtype within flu.sam
 average.shannon.invsimpson.numOTUs <- aggregate(flu.sam[, 6:8], list(flu.sam$All), mean)
 print(average.shannon.invsimpson.numOTUs)
