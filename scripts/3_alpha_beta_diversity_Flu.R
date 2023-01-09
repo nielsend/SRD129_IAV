@@ -1,6 +1,6 @@
 #########################################
 #SRD129 16S - Beta diversity
-#By Mou, KT
+
 
 #Purpose: This code generates non-metric multidimensional scaling ordination based on Bray-Curtis dissimilarities to create NMDS plots, and runs pairwise.adonis function to identify any significant differences in bacterial composition between treatment groups on a given day.
 
@@ -20,7 +20,7 @@ library(philentropy)
 library(cowplot)
 library('wesanderson')
 
-#R version 4.2.0 (2022-04-22)
+#R version 4.1.2
 
 #Load this function from the funfuns R package (https://github.com/Jtrachsel/funfuns)
 NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
@@ -32,10 +32,10 @@ NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
                          expand = FALSE){
   require(vegan)
   require(tidyr)
-
+  
   if (grouping_set %in% colnames(metadata)){
     if (all(rownames(metadata) == rownames(OTU_table))){
-
+      
       set.seed(rand_seed)
       generic_MDS <- metaMDS(OTU_table, k = 2,
                              trymax = MDS_trymax,
@@ -43,7 +43,7 @@ NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
                              distance = distance_method,
                              wascores = wascores,
                              expand = expand)
-
+      
       stress <- generic_MDS$stress
       nmds_points <- as.data.frame(generic_MDS$points)
       metadata <- metadata[match(rownames(generic_MDS$points), rownames(metadata)),]
@@ -52,51 +52,51 @@ NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
       # browser()
       nmds.mean <- aggregate(metanmds[,grep("MDS", colnames(metanmds))], list(group=metanmds[[grouping_set]]), mean)
       metanmds[[grouping_set]] <- factor(metanmds[[grouping_set]]) # this 'set' needs to be passed in from function
-
+      
       #check to make sure at least 3 obs for each grouping_set
-
+      
       numobs <- metanmds %>% group_by(!!grouping_set) %>% summarise(n=n())
       if (min(numobs$n) >= 3){
         ord <- ordiellipse(generic_MDS, metanmds[[grouping_set]], label = TRUE, conf = .95, kind = 'se', draw = 'none')
-
+        
         df_ell <- data.frame()
         for (d in levels(metanmds[[grouping_set]])){
           df_ell <- rbind(df_ell, cbind(as.data.frame(with(metanmds[metanmds[[grouping_set]] == d,],
                                                            vegan:::veganCovEllipse(ord[[d]]$cov, ord[[d]]$center, ord[[d]]$scale))),group=d))
         }
-
-
-
+        
+        
+        
         # this loop assigns the group centroid X coordinates to each sample, there is probably a better way...
-
+        
         metanmds$centroidX <- NA
         metanmds$centroidY <- NA
-
-
+        
+        
         for (level in levels(metanmds[[grouping_set]])){
           metanmds[metanmds[[grouping_set]] == level,]$centroidX <- nmds.mean$MDS1[nmds.mean$group == level]
           metanmds[metanmds[[grouping_set]] == level,]$centroidY <- nmds.mean$MDS2[nmds.mean$group == level]
-
-
+          
+          
         }
         print(paste('Ordination stress:', stress, sep = ' '))
         return(list(metanmds, df_ell, generic_MDS))
-
+        
       } else {
         warning('One of your groups in "grouping_set" has less than 3 observations, cannot generate elipses')
         df_ell <- data.frame()
         return(list(metanmds, df_ell, generic_MDS))}
-
+      
     } else {
       stop('The rownames for your OTU table and metadata do not match.')
     }
-
+    
   }else {
     stop('The grouping set column you have provided in not in your metadata.')
   }
-
-
-
+  
+  
+  
 }
 
 
@@ -104,19 +104,19 @@ NMDS_ellipse <- function(metadata, OTU_table, grouping_set,
 pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'bray', p.adjust.m ='bonferroni')
 {
   library(vegan)
-
+  
   co = combn(unique(as.character(factors)),2)
   pairs = c()
   F.Model =c()
   R2 = c()
   p.value = c()
-
-
+  
+  
   for(elem in 1:ncol(co)){
     if(sim.function == 'daisy'){
       library(cluster); x1 = daisy(x[factors %in% c(co[1,elem],co[2,elem]),],metric=sim.method)
     } else{x1 = vegdist(x[factors %in% c(co[1,elem],co[2,elem]),],method=sim.method)}
-
+    
     ad = adonis(x1 ~ factors[factors %in% c(co[1,elem],co[2,elem])] );
     pairs = c(pairs,paste(co[1,elem],'vs',co[2,elem]));
     F.Model =c(F.Model,ad$aov.tab[1,4]);
@@ -129,11 +129,11 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
   sig[p.adjusted <= 0.01] <-'*'
   sig[p.adjusted <= 0.001] <-'**'
   sig[p.adjusted <= 0.0001] <-'***'
-
+  
   pairw.res = data.frame(pairs,F.Model,R2,p.value,p.adjusted,sig)
   print("Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1")
   return(pairw.res)
-
+  
 }
 
 #######################################################################
@@ -150,7 +150,7 @@ head(flu.sam)
 flu.otu[1:10,1:10]
 flu.NMDS <- NMDS_ellipse(flu.sam, flu.otu, grouping_set = 'All')
 #Output:
-#Result: [1] "Ordination stress: 0.168872099651032"
+#Result: [1] "Ordination stress: 0.165095359605957"
 
 #Separate meta data and ellipse data to two lists to make NMDS plot
 flu.NMDS.2 <- flu.NMDS[[1]]
@@ -167,10 +167,10 @@ flu.df_ell.2$Treatment <- sub('D[A-z0-9]+ ', '\\2', flu.df_ell.2$group) #Create 
 head(flu.df_ell.2)
 
 #Restructure level order for 'nw.metanmds' and 'nw.df_ell'
-flu.NMDS.2$Day = factor(flu.NMDS.2$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D28", "D36", "D42"))
-flu.df_ell.2$Day = factor(flu.df_ell.2$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D28", "D36", "D42"))
-levels(flu.df_ell.2$Day) # [1] "D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21" "D28" "D36" "D42"
-levels(flu.NMDS.2$Day) # [1] "D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21" "D28" "D36" "D42"
+flu.NMDS.2$Day = factor(flu.NMDS.2$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D36", "D42"))
+flu.df_ell.2$Day = factor(flu.df_ell.2$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21",  "D36", "D42"))
+levels(flu.df_ell.2$Day) # [1] "D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21"  "D36" "D42"
+levels(flu.NMDS.2$Day) # [1] "D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21"  "D36" "D42"
 
 #Creating plot from NMDS calculations
 FluNMDSplot <- ggplot(data=flu.NMDS.2, aes(x=MDS1, y=MDS2, color=Treatment)) + geom_point() +
@@ -182,7 +182,7 @@ FluNMDSplot <- ggplot(data=flu.NMDS.2, aes(x=MDS1, y=MDS2, color=Treatment)) + g
   theme(strip.text.x = element_text(size=15),
         legend.text=element_text(size=15),
         legend.title = element_text(size=15)) +
-  labs(caption = 'Ordination stress = 0.169', color="Treatment group") +
+  labs(caption = 'Ordination stress = 0.165', color="Treatment group") +
   theme(plot.caption= element_text(size=13,vjust = 5))
 FluNMDSplot
 
@@ -201,7 +201,6 @@ goodcomps.flu.adon <- c(grep('D0 [A-Za-z]+ vs D0 [A-Za-z]+', flu.adon$pairs),
                         grep('D10 [A-Za-z]+ vs D10 [A-Za-z]+', flu.adon$pairs),
                         grep('D14 [A-Za-z]+ vs D14 [A-Za-z]+', flu.adon$pairs),
                         grep('D21 [A-Za-z]+ vs D21 [A-Za-z]+', flu.adon$pairs),
-                        grep('D28 [A-Za-z]+ vs D28 [A-Za-z]+', flu.adon$pairs),
                         grep('D36 [A-Za-z]+ vs D36 [A-Za-z]+', flu.adon$pairs),
                         grep('D42 [A-Za-z]+ vs D42 [A-Za-z]+', flu.adon$pairs))
 # "[A-Za-z]" matches all capital and lowercase letters
@@ -214,12 +213,13 @@ goodcomps.flu.adon.2
 goodcomps.flu.adon.2$p.adjusted <- p.adjust(goodcomps.flu.adon.2$p.value, method = 'fdr') #"p.adjust" function returns a set of p-values adjusted with "fdr" method
 goodcomps.flu.adon.2$p.adjusted2 <- round(goodcomps.flu.adon.2$p.adjusted, 3) #Round p-values to 3 decimal points and list in new "p.adjusted2" column
 goodcomps.flu.adon.2$p.adjusted2[goodcomps.flu.adon.2$p.adjusted2 > 0.05] <- NA #For all p-values greater than 0.05, replace with "NA"
-write.csv(goodcomps.flu.adon.2, file='Flu.pairwisecomparisons.csv', row.names=TRUE)
+write.csv(goodcomps.flu.adon.2, file='goodcomps.flu.adon.2.csv', row.names=TRUE)
 
 ########################################
 
 #SRD129 16S - Alpha diversity
 #By Mou, KT
+#Modified by Nielsen, DW
 
 #Purpose: This code calculates alpha diversity metrics (Shannon, Inverse Simpson) that are plotted as box and whisker plots, and uses wilcoxon rank sum test to assess any significant differences in diversity between treatment groups on a given day.
 
@@ -239,11 +239,17 @@ library(philentropy)
 library(cowplot)
 library('wesanderson')
 
+
+#change to numeric
+otu.meta4.2 <- otu.meta4
+otu.meta4.2 <- apply(otu.meta4.2, 2, as.numeric)
+rownames(otu.meta4.2) <- rownames(otu.meta4)
+
 #Calculating alpha diversity metrics: Shannon, Inverse Simpson
-flu.sam$shannon <- diversity(otu.meta4) #"diversity" is a vegan function. The default index is set at "shannon". I added a shannon index column in 'flu.sam'
-flu.sam$invsimpson <- diversity(otu.meta4,index = 'invsimpson') #We used 'invsimpson' since it is easier to interpret than Simpson values and won't need to "inverse" the Simpson values to understand (With Simpson values, the lower the number, the higher the diversity)
-flu.sam$Day = factor(flu.sam$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D28", "D36", "D42")) # Set the level order of values in "Day" column
-levels(sample_data(flu.sam)$Day) #Set the level order of values in "Day" column to D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21" "D28" "D36" "D42"
+flu.sam$shannon <- diversity(otu.meta4.2) #"diversity" is a vegan function. The default index is set at "shannon". I added a shannon index column in 'flu.sam'
+flu.sam$invsimpson <- diversity(otu.meta4.2,index = 'invsimpson') #We used 'invsimpson' since it is easier to interpret than Simpson values and won't need to "inverse" the Simpson values to understand (With Simpson values, the lower the number, the higher the diversity)
+flu.sam$Day = factor(flu.sam$Day, levels=c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D36", "D42")) # Set the level order of values in "Day" column
+levels(sample_data(flu.sam)$Day) #Set the level order of values in "Day" column to D0"  "D1"  "D3"  "D7"  "D10" "D14" "D21" "D36" "D42"
 
 #To calculate species richness:
 ##Vegan package: Species richness (S) and Pielou's evenness (J)
@@ -253,45 +259,45 @@ S <- specnumber(BCI) ## rowSums(BCI > 0) does the same...
 J <- H/log(S)
 
 ##For this project, the code would be something like this:
-H <- diversity(otu.meta4)
-S <- specnumber(otu.meta4)
+H <- diversity(otu.meta4.2)
+S <- specnumber(otu.meta4.2)
 J <- H/log(S)
 
 #Calculate the average shannon, invsimpson, numOTUs for each "All" subtype within flu.sam
 average.shannon.invsimpson.numOTUs <- aggregate(flu.sam[, 6:8], list(flu.sam$All), mean)
 print(average.shannon.invsimpson.numOTUs)
-#Output:
-#       Group.1   numOTUS  shannon invsimpson
-#1   D0 Control  69.10000 2.565335   6.377505
-#2       D0 IAV  51.20000 2.169701   4.399913
-#3   D1 Control  50.90000 2.253141   5.126906
-#4       D1 IAV  45.20000 2.030144   4.128696
-#5  D10 Control  62.70000 2.445356   5.112930
-#6      D10 IAV  51.70000 2.305930   5.136920
-#7  D14 Control  81.10000 2.853185   7.046119
-#8      D14 IAV  92.20000 3.069216   8.757443
-#9  D21 Control  79.90000 2.925234   7.111600
-#10     D21 IAV  91.33333 3.135175   8.865022
-#11 D28 Control 105.50000 3.511063  13.981237
-#12     D28 IAV 103.20000 3.608026  15.135310
-#13  D3 Control  85.60000 2.902182   7.333515
-#14      D3 IAV  68.00000 2.571588   5.847328
-#15 D36 Control  91.80000 3.152522  13.080790
-#16     D36 IAV 109.11111 3.409859  15.417720
-#17 D42 Control 108.40000 3.515769  17.795337
-#18     D42 IAV 113.77778 3.477660  16.745868
-#19  D7 Control  56.80000 2.382253   5.533712
-#20      D7 IAV  26.20000 1.817367   4.238963
+#Output: 
+# Group.1   numOTUS  shannon invsimpson
+# 1   D0 Control 109.80000 2.587903   6.328646
+# 2   D0 IAV  86.42857 2.178828   4.305940
+# 3   D1 Control  79.10000 2.274500   5.123323
+# 4   D1 IAV  81.42857 2.047507   3.824430
+# 5  D10 Control  98.50000 2.475586   5.151952
+# 6  D10 IAV  86.42857 2.348007   5.372605
+# 7  D14 Control 125.30000 2.880351   7.008433
+# 8  D14 IAV 153.71429 3.207986   8.923553
+# 9  D21 Control 119.30000 2.928322   7.053007
+# 10 D21 IAV 135.14286 3.110244   8.821332
+# 11  D3 Control 122.40000 2.915527   7.254918
+# 12  D3 IAV 104.42857 2.496526   5.330603
+# 13 D36 Control 145.40000 3.195433  13.342114
+# 14 D36 IAV 176.42857 3.542045  17.929662
+# 15 D42 Control 166.10000 3.558828  17.810303
+# 16 D42 IAV 187.71429 3.610034  19.099978
+# 17  D7 Control  87.10000 2.409081   5.447692
+# 18  D7 IAV  47.14286 1.831891   4.140613
+
 write.csv(average.shannon.invsimpson.numOTUs, file="Flu.average.shannon.invsimpson.num.OTUs.txt", row.names=TRUE)
 flu.pairwise.wilcox.shannon.test <- pairwise.wilcox.test(flu.sam$shannon, flu.sam$All, p.adjust.method = 'none') #Calculate pairwise comparisons by "All" column of the shannon indices in "Shannon" column
 print(flu.pairwise.wilcox.shannon.test) #Look at the results of 'Flu.pairwise.wilcox.shannon.test'
+
 flu.pairwise.wilcox.invsimpson.test <- pairwise.wilcox.test(flu.sam$invsimpson, flu.sam$All, p.adjust.method = 'none') #Calculate pairwise comparisons by "All" column of the inverse simpson indices in "invsimpson" column
 print(flu.pairwise.wilcox.invsimpson.test)
 
 #Generate a box and whisker plot of shannon
 flu.shannon <- ggplot(data = flu.sam, aes(x=Treatment, y=shannon, group=All, fill=Treatment)) +
   geom_boxplot(position = position_dodge2(preserve = 'total')) +
-  facet_wrap(~Day, scales = 'free') +
+  facet_wrap(~Day) +
   scale_y_continuous(name = "Shannon diversity") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
@@ -307,7 +313,7 @@ flu.shannon
 #Generate a box and whisker plot of inverse simpson diversity
 flu.invsimp <- ggplot(data = flu.sam, aes(x=Treatment, y=invsimpson, group=All, fill=Treatment)) +
   geom_boxplot(position = position_dodge2(preserve = 'total')) +
-  facet_wrap(~Day, scales = 'free') +
+  facet_wrap(~Day) +
   scale_y_continuous(name = "Inverse Simpson diversity") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
@@ -321,8 +327,81 @@ flu.invsimp <- ggplot(data = flu.sam, aes(x=Treatment, y=invsimpson, group=All, 
 flu.invsimp
 
 #Combining plots
-flu.combalpha <- plot_grid(flu.shannon + theme(legend.position = "none"), flu.invsimp, labels = "AUTO")
+flu.combalpha <- plot_grid(flu.shannon + theme(legend.position = "none"), flu.invsimp, labels = "AUTO", rel_widths = c(45.5,54.5), scale=0.9)
 flu.combalpha
 
 #Save 'flu.combalpha' as a .tiff for publication, 500dpi
-ggsave("Figure_1.tiff", plot=flu.combalpha, width = 14, height = 8, dpi = 500, units =c("in"))
+ggsave("Figure_1-2.tiff", plot=flu.combalpha, width = 14, height = 8, dpi = 500, units =c("in"))
+
+
+
+#sum Total of OTU in each column
+sum <- 0
+my_matrix <- otu.meta4.trans
+for(i in 1:ncol(my_matrix)){
+  sum[i] <- sum(my_matrix[,i])
+}
+
+#determine unique number of OTU in each column
+uniqueOTUinSubsample <- as.data.frame(apply(my_matrix,2,function(x) sum(x > 0)))
+uniqueOTUinSubsample <- as.data.frame(uniqueOTUinSubsample)
+uniqueOTUinSubsample$group <- rownames(uniqueOTUinSubsample)
+colnames(uniqueOTUinSubsample) <- c("numOTU", "group")
+meta3 <- meta2
+meta3$group <- rownames(meta3)
+uniqueOTUinSubsampleTot <- merge(meta3, uniqueOTUinSubsample, by="group")
+
+View(GPuniqueOTU)
+
+#arrange for graphpad
+GPuniqueOTU <- uniqueOTUinSubsampleTot %>% group_by(`Set`)
+GPuniqueOTU <- GPuniqueOTU %>% subset(select= - Day)
+GPuniqueOTU <- GPuniqueOTU %>% subset(select= - Treatment)
+write.csv(GPuniqueOTU, "./GPunique.OTU.csv")
+
+
+# generate sum per group & day
+uniOTUSubSampleMean <- data.frame(aggregate(uniqueOTUinSubsampleTot$numOTU, by=list(Category=uniqueOTUinSubsampleTot$Set), FUN=sum))
+colnames(uniOTUSubSampleMean) <- c("Set", "numOTU")
+uniOTUSubSampleMean <- merge(uniOTUSubSampleMean, meta3, by="Set")
+#D0_IAV_sum$avg <- (as.numeric(D0_IAV_sum$x*100/7))
+uniOTUSubSampleMean$Day = factor(uniOTUSubSampleMean$Day, levels = c("D0", "D1", "D3", "D7", "D10", "D14", "D21", "D36", "D42"))
+
+ggplot(uniOTUSubSampleMean, aes(x=Set, y=numOTU, fill=Day)) + geom_col() + facet_grid(~Day, scales = "free_x") +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 10, angle = 45, hjust = 1)) + ylab("Total Distinct OTUs on Each Day by Treatment Group")
+ggsave("./TotalDistinctOTUsonEachDaybyTreatmentGroup.tiff", plot=nasalgen.3plot, width = 15, height = 7, dpi = 500, units =c("in"))
+
+#Mean per group and Day
+uniOTUSubSampleMeanIAV <- uniOTUSubSampleMean %>% filter(Treatment=="IAV")
+uniOTUSubSampleMeanIAV$mean <- (uniOTUSubSampleMeanIAV$numOTU)/7
+View(uniOTUSubSampleMeanIAV)
+
+uniOTUSubSampleMeanIAV <- uniOTUSubSampleMeanIAV %>% subset(select=-group)
+uniOTUSubSampleMeanIAV <- uniOTUSubSampleMeanIAV %>% distinct()
+
+plotMeanOTUIAV <- ggplot(uniOTUSubSampleMeanIAV, aes(x=Treatment, y=`mean`, fill=Day)) + geom_col( aes(x=Treatment, y=`mean`, fill=Day)) + facet_grid(~Day, scales = "free_x") +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 10, angle = 45, hjust = 1)) 
+
+#control
+uniOTUSubSampleMeanControl <- uniOTUSubSampleMean %>% filter(Treatment=="Control")
+uniOTUSubSampleMeanControl$mean <- (uniOTUSubSampleMeanControl$numOTU)/10
+
+
+uniOTUSubSampleMeanControl <- uniOTUSubSampleMeanControl %>% subset(select=-Pig)
+uniOTUSubSampleMeanControl <- uniOTUSubSampleMeanControl %>% distinct()
+# MeanDistinctOTU <- merge(uniOTUSubSampleMean, uniOTUSubSampleMeanControl, by="Set", ALL.x=TRUE)
+# MeanDistinctOTU <- merge(uniOTUSubSampleMean, uniOTUSubSampleMeanIAV, by="Set", all.x =TRUE)
+plotMeanOTUControl <- ggplot(uniOTUSubSampleMeanControl, aes(x=Treatment, y=`mean`, fill=Day)) + geom_col( aes(x=Treatment, y=`mean`, fill=Day)) + facet_grid(~Day, scales = "free_x") +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 10, angle = 45, hjust = 1)) 
+
+
+#Combining plots
+otUMeanPlot <- plot_grid(plotMeanOTUIAV + theme(legend.position = "none"), plotMeanOTUControl, labels = "AUTO", rel_widths = c(45.5,54.5), scale=0.9)
+otUMeanPlot
+
+
+
+

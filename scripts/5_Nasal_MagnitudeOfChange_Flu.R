@@ -1,6 +1,6 @@
 #######################################################################
 #SRD129 16S - Magnitude of Change in Nasal Microbiota
-#By Mou, KT
+
 
 #Purpose: Plot the F-statistic from PERMANOVA pairwise comparisons of Control and Flu groups, over time (displays the magnitude of change in the nasal bacterial community structure of the Flu group relative to control)
 
@@ -27,19 +27,23 @@ library(ggrepel)
 #Flu_MagnitudeOfChange.csv was created from Flu.pairwisecomparisons.csv
 #To make the Flu_MagnitudeOfChange.csv file, open Flu.pairwisecomparisons.csv file in excel, 
 #copy columns "F. Model" through "p.adjusted2" and paste in a separate spreadsheet. Add "Day" and "Treatment" columns and save as "Flu_MagnitudeOfChange.csv".
+View(Flu.pairwisecomparisons)
 
-flu.mag <- read.csv("./data/Flu_MagnitudeOfChange.csv")
+flu.mag <- read.csv("./Flu_MagnitudeOfChange.csv")
+colnames(flu.mag) <- c("F.Model","R2","p.value","p.adjusted","p.adjusted2","Day","Treatment")
 class(flu.mag)
 flu.mag$Day <- factor(flu.mag$Day) #Encode "Day" as a factor
+flu.mag$Day = factor(flu.mag$Day, levels=c("D0", "D1", "D3","D7", "D10","D14", "D21", "D36", "D42"))
+
 flu.mag2 <- ggplot(data=flu.mag, aes(x=Day, y=F.Model, group=Treatment)) +
-      geom_line(aes(color=Treatment)) + geom_point(aes(color=Treatment)) +
-      ylab("PERMANOVA F vs control \n(difference relative to control)") +
-      scale_fill_manual(values=c("#00BFC4")) +
-      scale_color_manual(values=c("#00BFC4")) +
-      geom_label_repel(aes(label=p.adjusted2), box.padding = 0.35, point.padding=0.5,segment.color = 'grey50') +
-      theme_classic(base_size = 12) +
-      theme(axis.text.y = element_text(size = 14), axis.text.x = element_text(size=14), axis.title.x = element_text(size=14), axis.title.y = element_text(size=14), legend.text=element_text(size=14), legend.title=element_text(size=14)) +
-      labs(color="Treatment group")
+  geom_line(aes(color=Treatment)) + geom_point(aes(color=Treatment)) +
+  ylab("PERMANOVA F vs control \n(difference relative to control)") +
+  scale_fill_manual(values=c("#00BFC4")) +
+  scale_color_manual(values=c("#00BFC4")) +
+  geom_label_repel(aes(label=p.adjusted2), box.padding = 0.35, point.padding=0.5,segment.color = 'grey50') +
+  theme_classic(base_size = 12) +
+  theme(axis.text.y = element_text(size = 14), axis.text.x = element_text(size=14), axis.title.x = element_text(size=14), axis.title.y = element_text(size=14), legend.text=element_text(size=14), legend.title=element_text(size=14)) +
+  labs(color="Treatment group")
 flu.mag2
 
 #Save 'flu.mag2' as a .tiff for publication, 500dpi
