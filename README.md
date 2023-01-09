@@ -12,8 +12,8 @@ IAV = influenza A virus (Flu group)
 ## **Table of contents**
 | Chapter | Description |
 | -- | -- |
-| [data](./tree/master/data) | Includes data files needed to carry out R analysis |
-| [scripts](./tree/master/scripts) | Text file of commands used for mothur, R scripts for 16S rRNA analysis|
+| [data](./data) | Includes data files needed to carry out R analysis |
+| [scripts](./scripts) | Text file of commands used for mothur, R scripts for 16S rRNA analysis|
 
 ## **Scripts description and the order to run them**
 | Order | Script file name | Description |
