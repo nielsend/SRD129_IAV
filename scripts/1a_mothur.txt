@@ -21,21 +21,15 @@ summary.seqs(fasta=SRD129Flu.trim.contigs.good.fasta, count=SRD129Flu.contigs.go
 unique.seqs(fasta=SRD129Flu.trim.contigs.good.fasta, count=SRD129Flu.contigs.good.count_table)
 
 pcr.seqs(fasta=silva.nr_v132.align, start=11895, end=25318, keepdots=F)
-#try
-#pcr.seqs(fasta=silva.gold.align start=11895, end=25318, keepdots=F)
-#pcr.seqs(fasta=silva.seed_v132.align start=11895, end=25318, keepdots=F)
 
 
 rename.file(input=silva.nr_v132.pcr.align, new=silva.v4.fasta)
 
 align.seqs(fasta=SRD129Flu.trim.contigs.good.unique.fasta, reference=silva.v4.fasta, flip=T)
-#align.seqs(fasta=SRD129Flu.trim.contigs.good.unique.fasta, reference=silva.v4.fasta, flip=T)
-#align.seqs(fasta=SRD129Flu.trim.contigs.good.fasta, reference=silva.v4.fasta, flip=T)
+
 
 summary.seqs(fasta=current, count=SRD129Flu.trim.contigs.good.count_table)
-#summary.seqs(fasta=SRD129Flu.trim.contigs.good.align, count=SRD129Flu.contigs.good.count_table)
 
-#screen.seqs(fasta=SRD129Flu.trim.contigs.good.unique.align, count=SRD129Flu.trim.contigs.good.count_table, start=1968, end=11550)
 screen.seqs(fasta=SRD129Flu.trim.contigs.good.unique.align, count=SRD129Flu.trim.contigs.good.count_table, start=1968, end=11550, maxhomop=6)
 
 filter.seqs(fasta=SRD129Flu.trim.contigs.good.unique.good.align, vertical=T, trump=.)

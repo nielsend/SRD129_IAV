@@ -218,8 +218,7 @@ write.csv(goodcomps.flu.adon.2, file='goodcomps.flu.adon.2.csv', row.names=TRUE)
 ########################################
 
 #SRD129 16S - Alpha diversity
-#By Mou, KT
-#Modified by Nielsen, DW
+
 
 #Purpose: This code calculates alpha diversity metrics (Shannon, Inverse Simpson) that are plotted as box and whisker plots, and uses wilcoxon rank sum test to assess any significant differences in diversity between treatment groups on a given day.
 

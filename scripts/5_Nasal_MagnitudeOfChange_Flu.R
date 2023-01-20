@@ -19,7 +19,6 @@ library(philentropy)
 library(cowplot)
 library(ggrepel)
 
-#R version 4.0.2 (2020-06-22)
 
 #######################################################################
 
